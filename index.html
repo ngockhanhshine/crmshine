@@ -1,0 +1,1847 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shine CRM - Hệ Thống Quản Lý Khách Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Thiết lập Flat Vector tối giản tuyệt đối: Không đổ bóng, không gradient, viền 1px sắc nét */
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            box-shadow: none !important;
+            text-shadow: none !important;
+            background-image: none !important;
+        }
+
+        body {
+            background-color: #F6F9F5;
+            color: #132A1C;
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Thanh cuộn phẳng tối giản theo tone Shine */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #EDF3EB;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #B9CCB5;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8FA88A;
+        }
+
+        /* Trạng thái Focus phẳng */
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #156035 !important;
+            background-color: #FFFFFF;
+        }
+
+        button {
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-[#F6F9F5] text-[#132A1C]">
+
+    <!-- =====================================================================
+         1. THÔNG BÁO TOAST PHẲNG (THAY THẾ HOÀN TOÀN ALERT/CONFIRM)
+    ====================================================================== -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- =====================================================================
+         2. MÀN HÌNH ĐĂNG NHẬP (LOGIN VIEW - TONE XANH LÁ & XANH LÁ MẠ SHINE)
+    ====================================================================== -->
+    <div id="login-view" class="min-h-screen flex items-center justify-center p-4 bg-[#F6F9F5]">
+        <div class="w-full max-w-md bg-white border border-[#D1DFCE] rounded-md p-6 sm:p-8">
+            <!-- Header Logo -->
+            <div class="flex items-center justify-between pb-6 mb-6 border-b border-[#D1DFCE]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-[#156035] text-white rounded flex items-center justify-center font-bold text-xl tracking-tighter">
+                        S
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="text-lg font-bold text-[#132A1C] tracking-tight leading-none">SHINE CRM</h1>
+                            <span class="px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-[#ECF5E3] text-[#558B2F] border border-[#B7D89C]">
+                                Khôi phục thị lực
+                            </span>
+                        </div>
+                        <p class="text-xs text-[#4A6354] mt-1">Hệ thống quản lý dữ liệu khách hàng</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Đăng nhập -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-[#4A6354] mb-1.5">Tài khoản</label>
+                    <input type="text" id="login-username" required placeholder="Nhập tên đăng nhập..."
+                        class="w-full px-3 py-2 text-sm border border-[#D1DFCE] rounded bg-[#F6F9F5] text-[#132A1C] transition-colors">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-[#4A6354] mb-1.5">Mật khẩu</label>
+                    <input type="password" id="login-password" required placeholder="Nhập mật khẩu..."
+                        class="w-full px-3 py-2 text-sm border border-[#D1DFCE] rounded bg-[#F6F9F5] text-[#132A1C] transition-colors">
+                </div>
+
+                <div id="login-error" class="hidden text-xs font-medium text-red-800 bg-red-50 border border-red-300 rounded p-2.5">
+                    Tài khoản hoặc mật khẩu không chính xác.
+                </div>
+
+                <button type="submit" id="btn-login-submit"
+                    class="w-full py-2.5 px-4 bg-[#156035] hover:bg-[#0F4927] text-white text-sm font-semibold rounded border border-[#156035] transition-colors">
+                    Đăng nhập hệ thống
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         3. GIAO DIỆN CHÍNH (MAIN CRM APP)
+    ====================================================================== -->
+    <div id="app-view" class="hidden flex-1 flex flex-col">
+        
+        <!-- TOP NAVBAR (TINH GỌN: CHỈ LOGO, TÀI KHOẢN & ĐĂNG XUẤT) -->
+        <header class="bg-white border-b border-[#D1DFCE] sticky top-0 z-30">
+            <div class="max-w-[1600px] mx-auto px-4 sm:px-6 min-h-14 py-2 sm:py-0 flex flex-wrap items-center justify-between gap-2 sm:flex-nowrap sm:gap-4">
+                <!-- Brand -->
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 bg-[#156035] text-white rounded flex items-center justify-center font-bold text-base">S</div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-[#156035] tracking-tight text-base">SHINE CRM</span>
+                        <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded bg-[#ECF5E3] text-[#558B2F] border border-[#B7D89C]">
+                            Khôi phục thị lực
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Right Controls: Tài khoản & Đăng xuất -->
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <div class="flex items-center gap-2">
+                        <span id="header-user-name" class="text-xs sm:text-sm font-bold text-[#132A1C]">tranngockhanh</span>
+                        <span id="header-user-role" class="px-2 py-0.5 text-[11px] font-bold rounded bg-[#ECF5E3] text-[#156035] border border-[#B7D89C]">
+                            Admin
+                        </span>
+                    </div>
+                    <span class="h-4 w-[1px] bg-[#D1DFCE]"></span>
+                    <button type="button" id="payment-nav" onclick="showPaymentPage(document.getElementById('payment-page').classList.contains('hidden'))"
+                        class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">
+                        <span id="payment-nav-label">Duyệt nộp tiền</span>
+                        <span id="payment-nav-count" class="hidden ml-1 text-[11px] font-bold text-red-700" aria-live="polite"></span>
+                    </button>
+                    <button type="button" id="staff-nav" onclick="showStaffPage()"
+                        class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">
+                        <span id="staff-nav-label">Quản lý nhân viên</span>
+                    </button>
+                    <button type="button" onclick="handleLogout()"
+                        class="text-xs font-semibold px-3 py-1.5 border border-[#D1DFCE] bg-[#F6F9F5] hover:bg-red-50 hover:border-red-300 hover:text-red-700 text-[#132A1C] rounded transition-colors">
+                        Đăng xuất
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- MAIN WORKSPACE -->
+        <main id="crm-dashboard" class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
+
+            <!-- HÀNG 1: BỘ LỌC THỜI GIAN & NHÂN SỰ NGANG HÀNG VỚI 4 THẺ CHỈ SỐ BÁO CÁO NHANH -->
+            <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 items-stretch">
+                
+                <!-- KHỐI 1: BỘ LỌC THỜI GIAN & NHÂN SỰ THU GỌN -->
+                <div class="bg-white border border-[#D1DFCE] rounded-md p-3.5 flex flex-col justify-between gap-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold uppercase tracking-wider text-[#156035]">Tổng kết hoạt động</span>
+                        <span class="w-2 h-2 rounded-full bg-[#65A30D]"></span>
+                    </div>
+
+                    <div class="space-y-2">
+                        <!-- Chọn Tháng/Năm -->
+                        <div class="flex items-center justify-between gap-2">
+                            <label for="filter-month" class="text-xs font-semibold text-[#4A6354] whitespace-nowrap">Tháng:</label>
+                            <input type="month" id="filter-month" onchange="onFilterChange()"
+                                class="w-full max-w-[145px] text-xs font-bold text-[#132A1C] border border-[#D1DFCE] rounded px-2 py-1 bg-[#F6F9F5]">
+                        </div>
+
+                        <!-- Dropdown chọn nhân viên (Chỉ hiện với Admin) -->
+                        <div id="admin-staff-filter-box" class="hidden flex items-center justify-between gap-2">
+                            <label for="filter-staff" class="text-xs font-semibold text-[#4A6354] whitespace-nowrap">Nhân sự:</label>
+                            <select id="filter-staff" onchange="onFilterChange()"
+                                class="w-full max-w-[145px] text-xs font-bold text-[#132A1C] border border-[#D1DFCE] rounded px-2 py-1 bg-[#F6F9F5]">
+                                <option value="ALL">Tất cả Team</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KHỐI 2 (KPI 1): DATA ĐÃ NHẬN -->
+                <button type="button" onclick="toggleKpiFilter('RECEIVED')" id="kpi-card-RECEIVED"
+                    class="kpi-card text-left bg-white border border-[#D1DFCE] hover:border-[#156035] rounded-md p-3.5 transition-colors flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#4A6354]">Data đã nhận</span>
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#D1DFCE] bg-[#F6F9F5] text-[#4A6354]">Ngày ĐK</span>
+                    </div>
+                    <div class="mt-2.5 flex items-baseline justify-between w-full">
+                        <span id="kpi-val-received" class="text-2xl font-bold text-[#132A1C]">0</span>
+                        <span class="text-[11px] font-semibold text-[#156035]">Chi tiết &rarr;</span>
+                    </div>
+                </button>
+
+                <!-- KHỐI 3 (KPI 2): SỐ CA TƯ VẤN -->
+                <button type="button" onclick="toggleKpiFilter('CONSULTED')" id="kpi-card-CONSULTED"
+                    class="kpi-card text-left bg-white border border-[#D1DFCE] hover:border-[#156035] rounded-md p-3.5 transition-colors flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#4A6354]">Số ca tư vấn</span>
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-orange-300 bg-orange-50 text-orange-800">Ngày TV</span>
+                    </div>
+                    <div class="mt-2.5 flex items-baseline justify-between w-full">
+                        <span id="kpi-val-consulted" class="text-2xl font-bold text-[#132A1C]">0</span>
+                        <span class="text-[11px] font-semibold text-[#156035]">Chi tiết &rarr;</span>
+                    </div>
+                </button>
+
+                <!-- KHỐI 4 (KPI 3): SỐ CA CHỐT -->
+                <button type="button" onclick="toggleKpiFilter('CLOSED')" id="kpi-card-CLOSED"
+                    class="kpi-card text-left bg-white border border-[#D1DFCE] hover:border-[#156035] rounded-md p-3.5 transition-colors flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#4A6354]">Số ca chốt</span>
+                        <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#B7D89C] bg-[#ECF5E3] text-[#156035]">Nộp L1</span>
+                    </div>
+                    <div class="mt-2.5 flex items-baseline justify-between w-full">
+                        <span id="kpi-val-closed" class="text-2xl font-bold text-[#156035]">0</span>
+                        <span class="text-[11px] font-semibold text-[#156035]">Chi tiết &rarr;</span>
+                    </div>
+                </button>
+
+                <!-- KHỐI 5 (KPI 4): DOANH THU THỰC (XANH LÁ MẠ ĐẬM NỔI BẬT) -->
+                <button type="button" onclick="toggleKpiFilter('REVENUE')" id="kpi-card-REVENUE"
+                    class="kpi-card text-left bg-[#ECF5E3] border border-[#B7D89C] hover:border-[#156035] rounded-md p-3.5 transition-colors flex flex-col justify-between">
+                    <div class="flex items-center justify-between w-full">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#156035]">Doanh thu thực</span>
+                        <span class="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#B7D89C] bg-white text-[#558B2F]">Theo ngày nộp</span>
+                    </div>
+                    <div class="mt-2.5 flex items-baseline justify-between w-full">
+                        <span id="kpi-val-revenue" class="text-xl sm:text-2xl font-bold text-[#558B2F]">0 đ</span>
+                        <span class="text-[11px] font-semibold text-[#156035]">Chi tiết &rarr;</span>
+                    </div>
+                </button>
+            </section>
+
+            <!-- BANNER THÔNG BÁO KHI ĐANG LỌC THEO THẺ KPI -->
+            <div id="kpi-active-banner" class="hidden bg-[#156035] text-white rounded-md px-4 py-2.5 flex items-center justify-between gap-4">
+                <div class="text-xs sm:text-sm flex items-center gap-2">
+                    <span class="px-2 py-0.5 bg-[#ECF5E3] text-[#156035] font-bold rounded text-[11px] uppercase">Đang lọc KPI</span>
+                    <span id="kpi-active-desc">Hiển thị danh sách...</span>
+                </div>
+                <button type="button" onclick="clearKpiFilter()"
+                    class="text-xs font-semibold px-3 py-1 bg-[#0F4927] hover:bg-[#132A1C] border border-[#B7D89C]/40 rounded text-white whitespace-nowrap">
+                    Xóa lọc KPI &times;
+                </button>
+            </div>
+
+            <!-- KHU VỰC QUẢN LÝ DATA KHÁCH HÀNG -->
+            <section class="bg-white border border-[#D1DFCE] rounded-md overflow-hidden">
+                
+                <!-- Thanh Tab Phân Loại Trạng Thái Tự Động -->
+                <div class="border-b border-[#D1DFCE] bg-[#F6F9F5] px-4 pt-3 flex items-center justify-between flex-wrap gap-2">
+                    <div id="status-tabs-container" class="flex items-center gap-1.5 overflow-x-auto pb-0">
+                        <!-- Các Tab sẽ được render động bằng JS -->
+                    </div>
+                </div>
+
+                <!-- Thanh Tìm Kiếm & Thêm Mới -->
+                <div class="p-4 border-b border-[#D1DFCE] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+                    <div class="relative flex-1 max-w-md">
+                        <input type="text" id="search-input" oninput="renderTable()" placeholder="Tìm theo tên khách, thân nhân, SĐT, nguồn..."
+                            class="w-full pl-9 pr-3 py-2 text-xs sm:text-sm border border-[#D1DFCE] rounded bg-[#F6F9F5] text-[#132A1C]">
+                        <svg class="w-4 h-4 text-[#4A6354] absolute left-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                        </svg>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span id="table-count-label" class="text-xs text-[#4A6354] font-semibold mr-2">0 khách hàng</span>
+                        <button type="button" onclick="openCustomerModal(null)"
+                            class="px-3.5 py-2 bg-[#156035] hover:bg-[#0F4927] text-white text-xs font-semibold rounded border border-[#156035] flex items-center gap-1.5 transition-colors">
+                            <span>+ Thêm khách hàng</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bảng Dữ Liệu Khách Hàng -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-[#D1DFCE] bg-[#F6F9F5] text-[11px] font-bold uppercase tracking-wider text-[#4A6354]">
+                                <th class="py-3 px-4 border-r border-[#D1DFCE]">Trạng thái</th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE]">Ngày ĐK</th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE]">Họ tên khách / Thân nhân</th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE]">Liên hệ (SĐT / Nguồn)</th>
+                                <th id="consultation-heading" scope="col" aria-sort="none" class="py-3 px-4 border-r border-[#D1DFCE]">
+                                    <div class="flex items-center gap-1.5 whitespace-nowrap">
+                                        <span>Lịch tư vấn</span>
+                                        <button type="button" id="consultation-sort" onclick="toggleConsultationSort()"
+                                            aria-label="Sắp xếp lịch tư vấn từ sớm đến muộn" title="Sắp xếp lịch tư vấn"
+                                            class="rounded border border-[#B7D89C] px-1.5 py-0.5 text-xs text-[#156035] hover:bg-[#ECF5E3]">↕</button>
+                                    </div>
+                                    <div class="mt-1.5 flex items-center gap-1">
+                                        <input type="date" id="consultation-date-filter" onchange="setConsultationDateFilter(this.value)"
+                                            aria-label="Lọc lịch tư vấn theo ngày"
+                                            class="rounded border border-[#D1DFCE] bg-white px-1.5 py-0.5 text-xs font-normal text-[#132A1C]">
+                                        <button type="button" id="consultation-date-clear" onclick="setConsultationDateFilter('')"
+                                            aria-label="Bỏ lọc ngày tư vấn" title="Bỏ lọc ngày tư vấn"
+                                            class="hidden rounded px-1.5 py-0.5 text-xs text-[#156035] hover:bg-[#ECF5E3]">✕</button>
+                                    </div>
+                                </th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE]">Nhân viên</th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE] text-right">Tổng phí</th>
+                                <th class="py-3 px-4 border-r border-[#D1DFCE] text-right">Đã nộp</th>
+                                <th class="py-3 px-4 text-right">Còn lại</th>
+                            </tr>
+                        </thead>
+                        <tbody id="customers-tbody" class="divide-y divide-[#D1DFCE] text-xs sm:text-sm">
+                            <!-- Dữ liệu render bằng JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="table-empty-state" class="hidden py-12 px-4 text-center">
+                    <p class="text-sm font-semibold text-[#132A1C]">Không tìm thấy dữ liệu khách hàng phù hợp</p>
+                    <p class="text-xs text-[#4A6354] mt-1">Thử thay đổi bộ lọc tháng, tab trạng thái hoặc từ khóa tìm kiếm.</p>
+                </div>
+            </section>
+        </main>
+        <section id="payment-page" class="hidden flex-1 w-full max-w-[1100px] mx-auto px-4 sm:px-6 py-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h1 class="text-xl font-bold text-[#132A1C]">Duyệt cập nhật nộp tiền</h1>
+                <button type="button" onclick="loadPaymentRequests()" class="rounded border border-[#D1DFCE] bg-white px-3 py-1.5 text-sm font-semibold text-[#156035]">Tải lại</button>
+            </div>
+            <p id="payment-request-status" role="status" class="text-sm text-[#4A6354]"></p>
+            <div id="payment-request-list" class="space-y-3"></div>
+        </section>
+        <section id="staff-page" class="hidden flex-1 w-full max-w-[1100px] mx-auto px-4 sm:px-6 py-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <h1 class="text-xl font-bold text-[#132A1C]">Quản lý nhân viên</h1>
+                <button type="button" onclick="loadStaffManagement()" class="rounded border border-[#D1DFCE] bg-white px-3 py-1.5 text-sm font-semibold text-[#156035]">Tải lại</button>
+            </div>
+            <p id="staff-management-status" role="status" class="min-h-5 text-sm text-[#4A6354]"></p>
+            <div class="grid gap-4 md:grid-cols-2">
+                <div class="rounded-lg border border-[#D1DFCE] bg-white p-4">
+                    <fieldset id="allocation-controls" disabled class="space-y-3">
+                        <legend class="mb-2 font-bold text-[#132A1C]">Chế độ phân bổ khách hàng</legend>
+                        <label class="flex items-start gap-2 text-sm">
+                            <input type="radio" name="allocation-mode" value="manual" class="mt-1 accent-[#156035]" onchange="saveAllocationMode(this.value)">
+                            <span><strong>Phân bổ thủ công</strong><br><span class="text-[#4A6354]">Admin tự phân bổ khách.</span></span>
+                        </label>
+                        <label class="flex items-start gap-2 text-sm">
+                            <input type="radio" name="allocation-mode" value="round_robin" class="mt-1 accent-[#156035]" onchange="saveAllocationMode(this.value)">
+                            <span><strong>Phân bổ theo lượt</strong><br><span class="text-[#4A6354]">Sau 5 phút chưa phân bổ, khách được giao cho nhân viên Online. Nếu sau 5 phút nữa còn thiếu ghi chú mắt hoặc lịch hẹn, hệ thống chuyển lượt khi có người Online khác.</span></span>
+                        </label>
+                    </fieldset>
+                </div>
+                <div class="rounded-lg border border-[#D1DFCE] bg-white">
+                    <h2 class="border-b border-[#D1DFCE] px-4 py-3 font-bold text-[#132A1C]">Trạng thái nhân viên</h2>
+                    <ul id="staff-online-list" class="text-sm"></ul>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- =====================================================================
+         4. OVERLAY CHI TIẾT & CẬP NHẬT KHÁCH HÀNG (26 CỘT CHUẨN SHEET DATA MẪU)
+    ====================================================================== -->
+    <div id="customer-modal" class="hidden fixed inset-0 z-40 bg-[#132A1C]/60 flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+        <div class="bg-white border border-[#156035] rounded-md w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden my-auto">
+            
+            <!-- Modal Header -->
+            <div class="px-5 py-3.5 border-b border-[#D1DFCE] bg-[#F6F9F5] flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h3 id="modal-customer-title" class="text-base font-bold text-[#132A1C]">Chi Tiết Hồ Sơ Khách Hàng</h3>
+                    <div id="modal-live-status-badge"></div>
+                    <span id="modal-row-indicator" class="text-[11px] font-mono text-[#4A6354] bg-white border border-[#D1DFCE] px-2 py-0.5 rounded">Dòng hệ thống #--</span>
+                </div>
+                <div class="flex shrink-0 items-center gap-2">
+                    <button type="submit" form="customer-form" id="btn-save-customer"
+                        class="whitespace-nowrap rounded border border-[#156035] bg-[#156035] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0F4927] disabled:opacity-50 sm:px-4">
+                        Lưu thay đổi
+                    </button>
+                    <button type="button" onclick="closeCustomerModal()" aria-label="Đóng hồ sơ" class="flex h-8 w-8 items-center justify-center rounded border border-[#D1DFCE] bg-white font-bold text-[#132A1C] hover:bg-[#ECF5E3]">
+                        &times;
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body (Chia 3 cột chuẩn 25 trường dữ liệu) -->
+            <form id="customer-form" onsubmit="saveCustomerData(event)" class="flex-1 overflow-y-auto p-5">
+                <input type="hidden" id="field-id">
+                <input type="hidden" id="field-rowIndex">
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+                    
+                    <!-- CỘT 1 (4/12): THÔNG TIN HÀNH CHÍNH & PHỤ TRÁCH -->
+                    <div class="lg:col-span-4 space-y-3.5 border border-[#D1DFCE] rounded-md p-4 bg-[#F6F9F5]/60">
+                        <div class="pb-2 border-b border-[#D1DFCE]">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-[#156035]">1. Thông Tin Khách Hàng</h4>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-[#4A6354] mb-1">Ngày đăng ký</label>
+                            <input type="date" id="field-ngayDangKy" required
+                                class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-[#4A6354] mb-1">Họ tên khách <span class="text-red-600">*</span></label>
+                            <input type="text" id="field-hoTenKhach" required placeholder="VD: Nguyễn Thị Mai"
+                                class="w-full px-2.5 py-1.5 text-xs font-semibold border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-[#4A6354] mb-1">Họ tên thân nhân</label>
+                            <input type="text" id="field-hoTenThanNhan" placeholder="VD: Trần Văn Hùng (Chồng)"
+                                class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2.5">
+                            <div>
+                                <label class="block text-xs font-semibold text-[#4A6354] mb-1">Số điện thoại <span class="text-red-600">*</span></label>
+                                <input type="tel" id="field-sdt" required placeholder="0901234567"
+                                    class="w-full px-2.5 py-1.5 text-xs font-semibold border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-[#4A6354] mb-1">Nguồn đăng ký</label>
+                                <input type="text" id="field-nguonDangKy" placeholder="Facebook / Zalo / Web..."
+                                    class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold text-[#4A6354] mb-1">Email</label>
+                            <input type="email" id="field-email" placeholder="khachhang@gmail.com"
+                                class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                        </div>
+
+                        <div class="pt-2 border-t border-[#D1DFCE]">
+                            <label class="block text-xs font-semibold text-[#4A6354] mb-1">Nhân viên phụ trách</label>
+                            <select id="field-nhanVien" onchange="updateModalLivePreview()"
+                                class="w-full px-2.5 py-1.5 text-xs font-semibold border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                                <option value="">-- Chưa phân bổ (Trống) --</option>
+                            </select>
+                            <p id="staff-lock-note" class="hidden text-[11px] text-[#4A6354] mt-1">Chuyên viên tư vấn không thể chuyển data cho người khác.</p>
+                        </div>
+                    </div>
+
+                    <!-- CỘT 2 (3/12): LỊCH HẸN TƯ VẤN & TRẠNG THÁI -->
+                    <div class="lg:col-span-3 space-y-3.5 border border-[#D1DFCE] rounded-md p-4 bg-[#F6F9F5]/60 flex flex-col justify-between">
+                        <div class="space-y-3.5">
+                            <div class="pb-2 border-b border-[#D1DFCE]">
+                                <h4 class="text-xs font-bold uppercase tracking-wider text-[#156035]">2. Lịch Tư Vấn & Trạng Thái</h4>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-[#4A6354] mb-1">Ngày tư vấn</label>
+                                <input type="date" id="field-ngayTuVan" onchange="updateModalLivePreview()"
+                                    class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold text-[#4A6354] mb-1">Giờ tư vấn</label>
+                                <input type="time" id="field-gioTuVan" onchange="updateModalLivePreview()"
+                                    class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                            </div>
+
+                            <!-- Checkbox Không quan tâm -->
+                            <div class="pt-2">
+                                <label class="flex items-start gap-2.5 p-3 border border-[#D1DFCE] rounded bg-white cursor-pointer hover:border-[#156035] transition-colors">
+                                    <input type="checkbox" id="field-khongQuanTam" onchange="updateModalLivePreview()"
+                                        class="mt-0.5 w-4 h-4 accent-[#156035] rounded border-[#D1DFCE]">
+                                    <div>
+                                        <span class="block text-xs font-bold text-[#132A1C]">Khách không quan tâm</span>
+                                        <span class="block text-[11px] text-[#4A6354] mt-0.5">Đánh dấu đóng hồ sơ (Tag Đen)</span>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-1 flex-col gap-1.5">
+                            <label for="field-tinhTrangMat" class="block text-xs font-semibold text-[#4A6354]">Tình trạng mắt</label>
+                            <textarea id="field-tinhTrangMat" rows="9" maxlength="50000"
+                                placeholder="Ghi tình trạng mắt, kết quả kiểm tra, ghi chú tư vấn..."
+                                class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-sm leading-relaxed text-[#132A1C]"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- CỘT 3 (5/12): TÀI CHÍNH & LỊCH SỬ THANH TOÁN 6 LẦN -->
+                    <div class="lg:col-span-5 space-y-3.5 border border-[#D1DFCE] rounded-md p-4 bg-[#F6F9F5]/60">
+                        <div class="pb-2 border-b border-[#D1DFCE] flex items-center justify-between">
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-[#156035]">3. Chi Tiết Học Phí / Liệu Trình</h4>
+                            <span class="text-[11px] text-[#4A6354]">Đơn vị: VNĐ</span>
+                        </div>
+
+                        <!-- Tổng quan công nợ -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <div class="p-2.5 bg-white border border-[#D1DFCE] rounded">
+                                <label class="block text-[11px] font-semibold text-[#4A6354]">Tổng phí</label>
+                                <input type="text" inputmode="numeric" id="field-tongPhi" placeholder="0" oninput="formatMoneyInput(this); updateModalLivePreview()"
+                                    class="w-full mt-1 text-xs font-bold text-[#132A1C] border-b border-[#D1DFCE] pb-0.5 bg-transparent">
+                            </div>
+                            <div class="p-2.5 bg-[#ECF5E3] border border-[#B7D89C] rounded">
+                                <span class="block text-[11px] font-semibold text-[#156035]">Tổng đã nộp</span>
+                                <div id="display-tongDaNop" class="mt-1 text-xs font-bold text-[#558B2F]">0 đ</div>
+                            </div>
+                            <div class="p-2.5 bg-amber-50 border border-amber-300 rounded">
+                                <span class="block text-[11px] font-semibold text-amber-800">Còn lại</span>
+                                <div id="display-conLai" class="mt-1 text-xs font-bold text-amber-900">0 đ</div>
+                            </div>
+                        </div>
+
+                        <!-- 6 Đợt Nộp Tiền -->
+                        <div class="space-y-2 pt-1">
+                            <div class="grid grid-cols-12 gap-2 text-[11px] font-semibold text-[#4A6354] px-1">
+                                <div class="col-span-2">Đợt</div>
+                                <div class="col-span-5">Số tiền nộp (VNĐ)</div>
+                                <div class="col-span-5">Ngày nộp tiền</div>
+                            </div>
+
+                            <!-- Lần 1 -> Lần 6 -->
+                            <div id="installments-container" class="space-y-2">
+                                <!-- Render bằng JS -->
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+    <!-- =====================================================================
+         5. JAVASCRIPT XỬ LÝ LOGIC & KẾT NỐI GOOGLE SHEET SHINE CRM
+    ====================================================================== -->
+    <script>
+        const CONFIG = {
+            AUTH_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbwxYVqV-tx_QRNdqcVtZ_WjX4C1KMQMEYzAeaq_UBsqHzJ8pR-5ce49lKD6Zo0P9Hxe5w/exec",
+            DATA_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbxl04PHeyFsXZG1BQzQV_nfNlxBQSwfbVILW11y6-4z0Sq2NPloLbCF_bvJ6rW6FrfZ/exec" 
+        };
+
+        const CUSTOMER_COLUMNS = [
+            "ngayDangKy", "hoTenKhach", "hoTenThanNhan", "sdt", "email", "nguonDangKy",
+            "gioTuVan", "ngayTuVan", "nhanVien", "tinhTrangMat", "tongPhi", "tongDaNop",
+            "nopLan1", "ngayNopLan1", "nopLan2", "ngayNopLan2", "nopLan3", "ngayNopLan3",
+            "nopLan4", "ngayNopLan4", "nopLan5", "ngayNopLan5", "nopLan6", "ngayNopLan6", "conLai", "tinhTrang"
+        ];
+        const CUSTOMER_DATE_COLUMNS = [0, 7, 13, 15, 17, 19, 21, 23];
+        const CUSTOMER_AMOUNT_COLUMNS = [10, 11, 12, 14, 16, 18, 20, 22, 24];
+        const SESSION_STORAGE_KEY = "shine_crm_session_v3";
+        const DATA_SESSION_STORAGE_KEY = "shine_crm_data_session";
+        const AUTO_SYNC_INTERVAL = 15000;
+        let customerReadVersion = 0;
+        let paymentReadVersion = 0;
+        let autoSyncInProgress = false;
+        let lastAutoSync = 0;
+        let paymentReviewsInProgress = 0;
+        let staffReadVersion = 0;
+        let allocationSaveInProgress = false;
+        let lastPresenceAt = 0;
+        let presenceInProgress = false;
+
+        function getCurrentMonthStr() {
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            return `${y}-${m}`;
+        }
+
+        let state = {
+            currentUser: null,
+            dataSessionToken: "",
+            newCustomerRequestId: "",
+            editingRevision: "",
+            users: [],
+            customers: [],
+            selectedMonth: getCurrentMonthStr(),
+            selectedStaff: "ALL",
+            activeTab: "ALL",
+            activeKpiFilter: null,
+            consultationDate: "",
+            consultationOrder: ""
+        };
+
+        /**
+         * KHỞI TẠO ỨNG DỤNG KHI TẢI TRANG
+         */
+        window.onload = async function() {
+            ["shine_crm_users_v2", "shine_crm_customers_v2", "shine_crm_session_v2", "shine_crm_session_v4"]
+                .forEach(key => localStorage.removeItem(key));
+
+            window.addEventListener("storage", function(e) {
+                if (e.key === SESSION_STORAGE_KEY && !e.newValue) {
+                    clearSession();
+                    showToast("Phiên đăng nhập đã kết thúc ở tab khác.", "info");
+                }
+            });
+
+            window.setInterval(syncVisiblePage, AUTO_SYNC_INTERVAL);
+            window.setInterval(sendStaffPresence, 45000);
+            window.addEventListener("focus", sendStaffPresence);
+            window.addEventListener("focus", syncVisiblePage);
+            document.addEventListener("visibilitychange", syncVisiblePage);
+
+            let session;
+            try {
+                session = JSON.parse(localStorage.getItem(SESSION_STORAGE_KEY));
+            } catch {
+                clearSession();
+            }
+            if (session?.user && Array.isArray(session.staff)) {
+                state.currentUser = session.user;
+                state.users = session.staff;
+                restoreDataSession();
+                enterMainApp();
+                void sendStaffPresence();
+                await Promise.all([loadDataFromSheets(), refreshPaymentBadge()]);
+                if (state.currentUser) refreshDashboardAndTable();
+            } else {
+                showLoginView();
+            }
+
+        };
+
+        function isRestrictedBrowserShortcut(event) {
+            const key = event.key.toLowerCase();
+            const ctrl = event.ctrlKey && !event.metaKey;
+            const command = event.metaKey && !event.ctrlKey;
+            if (key === "f5") return event.ctrlKey || event.metaKey || event.altKey || event.shiftKey;
+            if (key === "f12") return true;
+
+            // Windows/Linux: lưu trang, tải lại, tải xuống, xem mã nguồn.
+            if (ctrl && !event.altKey &&
+                (key === "s" || key === "r" || key === "j" || key === "u")) return true;
+
+            // Windows/Linux: DevTools, console (Chrome/Firefox), chọn phần tử.
+            if (ctrl && event.shiftKey && !event.altKey && ["i", "c", "k"].includes(key)) return true;
+
+            // macOS: lưu trang, tải lại, Downloads và các công cụ nhà phát triển.
+            if (command && !event.altKey && ["s", "r", "j"].includes(key)) return true;
+            if (command && event.altKey && ["i", "j", "c", "k", "u", "l", "r"].includes(key)) return true;
+
+            return false;
+        }
+
+        document.addEventListener("keydown", function(event) {
+            if (!state.currentUser || isAdminRole() || !isRestrictedBrowserShortcut(event)) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }, { capture: true });
+
+        async function requestDataScript(payload) {
+            if (!CONFIG.DATA_SCRIPT_URL) throw new Error("Missing Data Apps Script URL");
+            const response = await fetch(CONFIG.DATA_SCRIPT_URL, {
+                method: "POST",
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(30000)
+            });
+            if (!response.ok) throw new Error("Apps Script Data request failed");
+            return response.json();
+        }
+
+        function restoreDataSession() {
+            try {
+                const session = JSON.parse(localStorage.getItem(DATA_SESSION_STORAGE_KEY));
+                if (session?.username === state.currentUser.username &&
+                    session.url === CONFIG.DATA_SCRIPT_URL && typeof session.token === "string") {
+                    state.dataSessionToken = session.token;
+                }
+            } catch {
+                localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
+            }
+        }
+
+        async function startDataSession(username, password) {
+            state.dataSessionToken = "";
+            localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
+            if (!CONFIG.DATA_SCRIPT_URL) return;
+            const user = state.currentUser;
+            try {
+                const result = await requestDataScript({ action: "openDataSession", username, password });
+                if (state.currentUser !== user) return;
+                if (result?.status !== "success" || typeof result.token !== "string" || !result.token) {
+                    throw new Error("Apps Script Data session failed");
+                }
+                state.dataSessionToken = result.token;
+                localStorage.setItem(DATA_SESSION_STORAGE_KEY, JSON.stringify({
+                    username: user.username, url: CONFIG.DATA_SCRIPT_URL, token: result.token
+                }));
+            } catch {
+                showToast("Không thể mở phiên kết nối với Hệ thống. Vui lòng kiểm tra kết nối hoặc đăng nhập lại.", "error");
+            }
+        }
+
+        async function requestData(action, fields = {}) {
+            if (!CONFIG.DATA_SCRIPT_URL) {
+                showToast("Hệ thống chưa có đường dẫn kết nối.", "error");
+                return null;
+            }
+            const token = state.dataSessionToken;
+            if (!token) {
+                showToast("Hệ thống cần một phiên mới. Anh vui lòng đăng xuất rồi đăng nhập lại.", "info");
+                return null;
+            }
+            const result = await requestDataScript({ action, token, ...fields });
+            if (state.dataSessionToken !== token) return null;
+            if (result?.status === "unauthorized") {
+                state.dataSessionToken = "";
+                updatePaymentBadge(0);
+                state.customers = [];
+                localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
+                refreshDashboardAndTable();
+                showToast("Phiên kết nối với Hệ thống đã hết hạn. Anh vui lòng đăng xuất rồi đăng nhập lại.", "info");
+                return null;
+            }
+            return result;
+        }
+
+        async function syncVisiblePage() {
+            if (document.hidden || !state.currentUser || !state.dataSessionToken ||
+                autoSyncInProgress || Date.now() - lastAutoSync < 1000 ||
+                !document.getElementById("customer-modal").classList.contains("hidden")) return;
+
+            autoSyncInProgress = true;
+            lastAutoSync = Date.now();
+            try {
+                if (isStaffPageVisible()) {
+                    await Promise.all([loadStaffManagement(true), refreshPaymentBadge()]);
+                } else if (!document.getElementById("payment-page").classList.contains("hidden")) {
+                    if (!paymentReviewsInProgress) await loadPaymentRequests(true);
+                } else {
+                    const [changed] = await Promise.all([loadDataFromSheets(true), refreshPaymentBadge()]);
+                    if (changed && state.currentUser) refreshDashboardAndTable();
+                }
+            } finally {
+                autoSyncInProgress = false;
+            }
+        }
+
+        async function loadDataFromSheets(silent = false) {
+            const version = ++customerReadVersion;
+            try {
+                const result = await requestData("getData");
+                if (!result || version !== customerReadVersion) return false;
+                if (result.status === "migration_required") {
+                    if (!silent) showToast("Cấu trúc dữ liệu của Hệ thống chưa được cập nhật. Hãy chạy chuyenCotTinhTrangMat trong Apps Script Data.", "error");
+                    return false;
+                }
+                if (result.status !== "success" || !Array.isArray(result.rows)) {
+                    throw new Error("Apps Script data request failed");
+                }
+                const customers = result.rows.map(parseCustomerRow);
+                if (silent && JSON.stringify(customers) === JSON.stringify(state.customers)) return false;
+                state.customers = customers;
+                return true;
+            } catch {
+                if (!silent && version === customerReadVersion) {
+                    showToast("Không thể tải dữ liệu từ Hệ thống. Vui lòng kiểm tra bản triển khai hoặc tải lại trang.", "error");
+                }
+                return false;
+            }
+        }
+
+        function parseCustomerRow({ rowIndex, revision, data }) {
+            const customer = { id: `row_${rowIndex}`, rowIndex, revision };
+            CUSTOMER_COLUMNS.forEach((field, col) => {
+                const value = data[col] ?? "";
+                if (CUSTOMER_AMOUNT_COLUMNS.includes(col)) {
+                    customer[field] = typeof value === "number" ? value : Number(String(value).replace(/[^0-9]/g, "")) || 0;
+                } else if (field === "tinhTrangMat") {
+                    customer[field] = String(value);
+                } else {
+                    const text = String(value).trim();
+                    customer[field] = CUSTOMER_DATE_COLUMNS.includes(col) ? normalizeDateToISO(text) : text;
+                }
+            });
+            return customer;
+        }
+
+        function normalizeDateToISO(str) {
+            if (!str) return "";
+            if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+            // Hỗ trợ định dạng dd/mm/yyyy hoặc d/m/yyyy trên Google Sheet
+            const parts = str.split("/");
+            if (parts.length === 3) {
+                const d = parts[0].padStart(2, "0");
+                const m = parts[1].padStart(2, "0");
+                const y = parts[2].length === 2 ? `20${parts[2]}` : parts[2];
+                return `${y}-${m}-${d}`;
+            }
+            return str;
+        }
+
+        /**
+         * MA TRẬN PHÂN LOẠI TRẠNG THÁI TỰ ĐỘNG (THEO ĐÚNG THỨ TỰ ƯU TIÊN)
+         */
+        function classifyCustomer(c) {
+            const tongPhi = Number(c.tongPhi) || 0;
+            const tongDaNop = calcTotalPaid(c);
+
+            // 1. Cột Nhân viên trống -> Cần phân quyền (Admin giao việc)
+            if (!c.nhanVien || c.nhanVien.trim() === "") {
+                return {
+                    code: "UNASSIGNED",
+                    label: "Chờ phân bổ",
+                    badgeClass: "bg-slate-100 text-slate-800 border-slate-400"
+                };
+            }
+
+            // 2. Tick Không quan tâm -> Tag màu Đen (#1F2937)
+            if (c.tinhTrang === "Không quan tâm") {
+                return {
+                    code: "NOT_INTERESTED",
+                    label: "Không quan tâm",
+                    badgeClass: "bg-[#1F2937] text-white border-[#1F2937]"
+                };
+            }
+
+            // 3. Tổng phí > 0 VÀ Tổng đã nộp > 0 -> Đã chốt (Tag màu Xanh lá #15803D)
+            if (tongPhi > 0 && tongDaNop > 0) {
+                return {
+                    code: "CLOSED",
+                    label: "Đã chốt",
+                    badgeClass: "bg-[#ECF5E3] text-[#15803D] border-[#15803D]"
+                };
+            }
+
+            // 4. Tổng phí > 0 VÀ Tổng đã nộp = 0 -> Chưa chốt (Tag màu Cyan #0E7490)
+            if (tongPhi > 0 && tongDaNop === 0) {
+                return {
+                    code: "UNCLOSED",
+                    label: "Chưa chốt",
+                    badgeClass: "bg-cyan-50 text-[#0E7490] border-[#0E7490]"
+                };
+            }
+
+            // 5. Đã điền đủ Giờ tư vấn VÀ Ngày tư vấn -> Lịch đã hẹn (Tag màu Cam #C2410C)
+            if (c.gioTuVan && c.gioTuVan.trim() !== "" && c.ngayTuVan && c.ngayTuVan.trim() !== "") {
+                return {
+                    code: "SCHEDULED",
+                    label: "Lịch đã hẹn",
+                    badgeClass: "bg-orange-50 text-[#C2410C] border-[#C2410C]"
+                };
+            }
+
+            // 6. Giờ tư vấn HOẶC Ngày tư vấn trống -> Cần hẹn lịch (Tag màu Đỏ #B91C1C)
+            return {
+                code: "NEED_SCHEDULE",
+                label: "Cần hẹn lịch",
+                badgeClass: "bg-red-50 text-[#B91C1C] border-[#B91C1C]"
+            };
+        }
+
+        /**
+         * XỬ LÝ ĐĂNG NHẬP & ĐĂNG XUẤT
+         */
+        async function handleLogin(e) {
+            e.preventDefault();
+            const username = document.getElementById("login-username").value.trim();
+            const passwordField = document.getElementById("login-password");
+            const password = passwordField.value.trim();
+            const btn = document.getElementById("btn-login-submit");
+            const error = document.getElementById("login-error");
+            if (btn.disabled) return;
+
+            error.classList.add("hidden");
+            btn.disabled = true;
+            btn.textContent = "Đang xác thực...";
+
+            let result;
+            try {
+                const response = await fetch(CONFIG.AUTH_SCRIPT_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ action: "login", username, password }),
+                    signal: AbortSignal.timeout(20000)
+                });
+                if (!response.ok) throw new Error("Apps Script request failed");
+                result = await response.json();
+                if (result?.status === "invalid_credentials") {
+                    error.textContent = "Tài khoản hoặc mật khẩu không chính xác.";
+                    error.classList.remove("hidden");
+                    return;
+                }
+                if (result?.status !== "success" ||
+                    typeof result.user?.username !== "string" || !result.user.username ||
+                    typeof result.user.role !== "string" || !result.user.role ||
+                    !Array.isArray(result.staff)) {
+                    throw new Error("Unexpected Apps Script response");
+                }
+            } catch {
+                error.textContent = "Không thể xác thực qua Apps Script. Vui lòng thử lại hoặc kiểm tra bản triển khai.";
+                error.classList.remove("hidden");
+                return;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Đăng nhập hệ thống";
+            }
+
+            state.currentUser = result.user;
+            state.users = result.staff;
+            localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify({
+                user: state.currentUser,
+                staff: state.users
+            }));
+            passwordField.value = "";
+            enterMainApp();
+            showToast(`Xin chào ${state.currentUser.username} (${state.currentUser.role})`, "success");
+
+            const loggedInUser = state.currentUser;
+            await startDataSession(username, password);
+            if (state.currentUser !== loggedInUser) return;
+            if (CONFIG.DATA_SCRIPT_URL && !state.dataSessionToken) return;
+            void sendStaffPresence();
+            await Promise.all([loadDataFromSheets(), refreshPaymentBadge()]);
+            if (state.currentUser === loggedInUser) refreshDashboardAndTable();
+        }
+
+        function handleLogout() {
+            const token = state.dataSessionToken;
+            clearSession();
+            if (token) requestDataScript({ action: "closeDataSession", token }).catch(() => {});
+        }
+
+        function clearSession() {
+            localStorage.removeItem(SESSION_STORAGE_KEY);
+            localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
+            state.currentUser = null;
+            state.dataSessionToken = "";
+            state.customers = [];
+            state.users = [];
+            lastPresenceAt = 0;
+            ++staffReadVersion;
+            document.getElementById("staff-online-list").replaceChildren();
+            state.activeKpiFilter = null;
+            state.consultationDate = "";
+            state.consultationOrder = "";
+            updatePaymentBadge(0);
+            closeCustomerModal();
+            document.getElementById("payment-request-list").replaceChildren();
+            showLoginView();
+        }
+
+        function showLoginView() {
+            document.getElementById("login-view").classList.remove("hidden");
+            document.getElementById("app-view").classList.add("hidden");
+        }
+
+        function isAdminRole() {
+            return state.currentUser && state.currentUser.role.toLowerCase() === "admin";
+        }
+
+        function enterMainApp() {
+            document.getElementById("login-view").classList.add("hidden");
+            document.getElementById("app-view").classList.remove("hidden");
+
+            const isAdmin = isAdminRole();
+            showPaymentPage(false, false);
+            document.getElementById("payment-nav").classList.toggle("hidden", !isAdmin);
+            document.getElementById("staff-nav").classList.toggle("hidden", !isAdmin);
+            document.getElementById("header-user-name").textContent = state.currentUser.username;
+            document.getElementById("header-user-role").textContent = state.currentUser.role;
+
+            // Thiết lập bộ lọc tháng mặc định
+            document.getElementById("filter-month").value = state.selectedMonth;
+
+            // Nếu là Admin -> Hiển thị Dropdown chọn nhân viên
+            const adminFilterBox = document.getElementById("admin-staff-filter-box");
+            if (isAdmin) {
+                adminFilterBox.classList.remove("hidden");
+                populateStaffDropdowns();
+                state.selectedStaff = "ALL";
+                state.activeTab = "ALL";
+            } else {
+                adminFilterBox.classList.add("hidden");
+                state.selectedStaff = state.currentUser.username;
+                state.activeTab = "ALL";
+            }
+
+            refreshDashboardAndTable();
+        }
+
+        function populateStaffDropdowns() {
+            const filterSelect = document.getElementById("filter-staff");
+            const modalSelect = document.getElementById("field-nhanVien");
+
+            filterSelect.innerHTML = `<option value="ALL">Tất cả Team</option>`;
+            modalSelect.innerHTML = `<option value="">-- Chưa phân bổ --</option>`;
+
+            state.users.forEach(u => {
+                filterSelect.innerHTML += `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`;
+                modalSelect.innerHTML += `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} (${escapeHtml(u.role)})</option>`;
+            });
+        }
+
+        /**
+         * LẤY DANH SÁCH KHÁCH HÀNG THUỘC PHẠM VI QUYỀN CỦA TÀI KHOẢN HIỆN TẠI
+         */
+        function getScopedCustomers() {
+            if (!isAdminRole()) {
+                return state.customers.filter(c => (c.nhanVien || "").toLowerCase() === state.currentUser.username.toLowerCase());
+            }
+            if (state.selectedStaff !== "ALL") {
+                return state.customers.filter(c => (c.nhanVien || "").toLowerCase() === state.selectedStaff.toLowerCase());
+            }
+            return state.customers;
+        }
+
+        /**
+         * TÍNH TOÁN 4 CHỈ SỐ KPI THEO THÁNG & CẬP NHẬT GIAO DIỆN
+         */
+        function onFilterChange() {
+            state.selectedMonth = document.getElementById("filter-month").value || getCurrentMonthStr();
+            if (isAdminRole()) {
+                state.selectedStaff = document.getElementById("filter-staff").value;
+            }
+            refreshDashboardAndTable();
+        }
+
+        function refreshDashboardAndTable() {
+            const scoped = getScopedCustomers();
+            const ym = state.selectedMonth; // Định dạng "YYYY-MM"
+
+            let countReceived = 0;
+            let countConsulted = 0;
+            let countClosed = 0;
+            let totalRevenue = 0;
+
+            scoped.forEach(c => {
+                // 1. Data đã nhận: Đếm theo tháng của Ngày đăng ký
+                if (c.ngayDangKy && c.ngayDangKy.startsWith(ym)) {
+                    countReceived++;
+                }
+
+                // 2. Số ca tư vấn: Đếm theo tháng của Ngày tư vấn
+                if (c.ngayTuVan && c.ngayTuVan.startsWith(ym)) {
+                    countConsulted++;
+                }
+
+                // 3. Số ca chốt: Đếm theo tháng của Ngày nộp Lần 1 và có tiền nộp > 0
+                if (c.ngayNopLan1 && c.ngayNopLan1.startsWith(ym) && (Number(c.nopLan1) || 0) > 0) {
+                    countClosed++;
+                }
+
+                totalRevenue += calcPaidInMonth(c, ym);
+            });
+
+            document.getElementById("kpi-val-received").textContent = countReceived;
+            document.getElementById("kpi-val-consulted").textContent = countConsulted;
+            document.getElementById("kpi-val-closed").textContent = countClosed;
+            document.getElementById("kpi-val-revenue").textContent = formatCurrency(totalRevenue);
+
+            renderStatusTabs();
+            renderTable();
+        }
+
+        /**
+         * BẬT / TẮT BỘ LỌC KHI CLICK VÀO CÁC THẺ KPI
+         */
+        function toggleKpiFilter(kpiType) {
+            if (state.activeKpiFilter === kpiType) {
+                clearKpiFilter();
+                return;
+            }
+            state.activeKpiFilter = kpiType;
+
+            document.querySelectorAll(".kpi-card").forEach(el => {
+                el.classList.remove("ring-2", "ring-[#156035]");
+            });
+            const activeCard = document.getElementById(`kpi-card-${kpiType}`);
+            if (activeCard) {
+                activeCard.classList.add("ring-2", "ring-[#156035]");
+            }
+
+            const banner = document.getElementById("kpi-active-banner");
+            const desc = document.getElementById("kpi-active-desc");
+            banner.classList.remove("hidden");
+
+            const labels = {
+                RECEIVED: `Danh sách Data đã nhận trong tháng ${state.selectedMonth}`,
+                CONSULTED: `Danh sách Ca tư vấn có lịch trong tháng ${state.selectedMonth}`,
+                CLOSED: `Danh sách Ca đã chốt (Nộp lần 1) trong tháng ${state.selectedMonth}`,
+                REVENUE: `Danh sách Khách hàng phát sinh doanh thu thực trong tháng ${state.selectedMonth}`
+            };
+            desc.textContent = labels[kpiType];
+
+            state.activeTab = "ALL";
+            renderStatusTabs();
+            renderTable();
+        }
+
+        function clearKpiFilter() {
+            state.activeKpiFilter = null;
+            document.querySelectorAll(".kpi-card").forEach(el => {
+                el.classList.remove("ring-2", "ring-[#156035]");
+            });
+            document.getElementById("kpi-active-banner").classList.add("hidden");
+            renderTable();
+        }
+
+        /**
+         * RENDER CÁC TAB TRẠNG THÁI VÀ ĐẾM SỐ LƯỢNG TỪNG TAB
+         */
+        function renderStatusTabs() {
+            const isAdmin = isAdminRole();
+            const scoped = getScopedCustomers();
+
+            const counts = {
+                UNASSIGNED: 0,
+                ALL: scoped.length,
+                NEED_SCHEDULE: 0,
+                SCHEDULED: 0,
+                UNCLOSED: 0,
+                CLOSED: 0,
+                NOT_INTERESTED: 0
+            };
+
+            if (isAdmin) {
+                counts.UNASSIGNED = state.customers.filter(c => classifyCustomer(c).code === "UNASSIGNED").length;
+            }
+
+            scoped.forEach(c => {
+                const st = classifyCustomer(c).code;
+                if (counts[st] !== undefined && st !== "UNASSIGNED") {
+                    counts[st]++;
+                }
+            });
+
+            const tabs = [];
+            if (isAdmin) {
+                tabs.push({ code: "UNASSIGNED", label: "Chờ phân bổ", dotClass: "bg-slate-500", count: counts.UNASSIGNED });
+            }
+            tabs.push(
+                { code: "ALL", label: "Tất cả", dotClass: "bg-[#156035]", count: counts.ALL },
+                { code: "NEED_SCHEDULE", label: "Cần hẹn lịch", dotClass: "bg-[#B91C1C]", count: counts.NEED_SCHEDULE },
+                { code: "SCHEDULED", label: "Lịch đã hẹn", dotClass: "bg-[#C2410C]", count: counts.SCHEDULED },
+                { code: "UNCLOSED", label: "Chưa chốt", dotClass: "bg-[#0E7490]", count: counts.UNCLOSED },
+                { code: "CLOSED", label: "Đã chốt", dotClass: "bg-[#15803D]", count: counts.CLOSED },
+                { code: "NOT_INTERESTED", label: "Không quan tâm", dotClass: "bg-[#1F2937]", count: counts.NOT_INTERESTED }
+            );
+
+            const container = document.getElementById("status-tabs-container");
+            container.innerHTML = tabs.map(t => {
+                const isActive = state.activeTab === t.code;
+                const activeStyle = isActive
+                    ? "bg-white text-[#156035] border-t border-l border-r border-[#D1DFCE] font-bold -mb-[1px]"
+                    : "text-[#4A6354] hover:text-[#132A1C] border border-transparent font-medium";
+
+                return `
+                    <button type="button" onclick="selectTab('${t.code}')"
+                        class="px-3 py-2 text-xs rounded-t flex items-center gap-2 whitespace-nowrap transition-colors ${activeStyle}">
+                        <span class="w-2 h-2 rounded-full ${t.dotClass}"></span>
+                        <span>${t.label}</span>
+                        <span class="px-1.5 py-0.2 text-[11px] rounded bg-[#ECF5E3] text-[#156035] font-semibold">${t.count}</span>
+                    </button>
+                `;
+            }).join("");
+        }
+
+        function selectTab(code) {
+            state.activeTab = code;
+            renderStatusTabs();
+            renderTable();
+        }
+
+        /**
+         * RENDER BẢNG DỮ LIỆU KHÁCH HÀNG
+         */
+        function setConsultationDateFilter(date) {
+            state.consultationDate = date;
+            renderTable();
+        }
+
+        function toggleConsultationSort() {
+            state.consultationOrder = state.consultationOrder === "ascending" ? "descending" : "ascending";
+            renderTable();
+        }
+
+        function filterConsultations(customers) {
+            const { consultationDate, consultationOrder } = state;
+            const matches = consultationDate ? customers.filter(c => c.ngayTuVan === consultationDate) : customers;
+            if (!consultationOrder) return matches;
+
+            const direction = consultationOrder === "ascending" ? 1 : -1;
+            return [...matches].sort((a, b) => {
+                if (!a.ngayTuVan || !b.ngayTuVan) return Number(!a.ngayTuVan) - Number(!b.ngayTuVan);
+                const byDate = a.ngayTuVan.localeCompare(b.ngayTuVan);
+                if (byDate) return direction * byDate;
+                if (!a.gioTuVan || !b.gioTuVan) return Number(!a.gioTuVan) - Number(!b.gioTuVan);
+                return direction * consultationTimeKey(a.gioTuVan).localeCompare(consultationTimeKey(b.gioTuVan));
+            });
+        }
+
+        function consultationTimeKey(time) {
+            const match = /^(\d{1,2}):(\d{2})/.exec(time);
+            return match ? match[1].padStart(2, "0") + ":" + match[2] : time;
+        }
+
+        function renderTable() {
+            const isAdmin = isAdminRole();
+            const keyword = document.getElementById("search-input").value.trim().toLowerCase();
+            const ym = state.selectedMonth;
+
+            let list = (isAdmin && state.activeTab === "UNASSIGNED")
+                ? state.customers.filter(c => classifyCustomer(c).code === "UNASSIGNED")
+                : getScopedCustomers();
+
+            // Lọc theo KPI nếu đang bật
+            if (state.activeKpiFilter) {
+                list = list.filter(c => {
+                    if (state.activeKpiFilter === "RECEIVED") {
+                        return c.ngayDangKy && c.ngayDangKy.startsWith(ym);
+                    }
+                    if (state.activeKpiFilter === "CONSULTED") {
+                        return c.ngayTuVan && c.ngayTuVan.startsWith(ym);
+                    }
+                    if (state.activeKpiFilter === "CLOSED") {
+                        return c.ngayNopLan1 && c.ngayNopLan1.startsWith(ym) && (Number(c.nopLan1) || 0) > 0;
+                    }
+                    if (state.activeKpiFilter === "REVENUE") {
+                        return calcPaidInMonth(c, ym) > 0;
+                    }
+                    return true;
+                });
+            } else if (state.activeTab !== "ALL" && state.activeTab !== "UNASSIGNED") {
+                list = list.filter(c => classifyCustomer(c).code === state.activeTab);
+            }
+
+            // Lọc theo từ khóa tìm kiếm
+            if (keyword) {
+                list = list.filter(c =>
+                    (c.hoTenKhach || "").toLowerCase().includes(keyword) ||
+                    (c.hoTenThanNhan || "").toLowerCase().includes(keyword) ||
+                    (c.sdt || "").toLowerCase().includes(keyword) ||
+                    (c.nguonDangKy || "").toLowerCase().includes(keyword)
+                );
+            }
+
+            list = filterConsultations(list);
+            const order = state.consultationOrder;
+            const sort = document.getElementById("consultation-sort");
+            document.getElementById("consultation-heading").setAttribute("aria-sort", order || "none");
+            sort.textContent = order === "ascending" ? "↑" : order === "descending" ? "↓" : "↕";
+            sort.setAttribute("aria-label", order === "ascending" ? "Sắp xếp lịch tư vấn từ muộn đến sớm" : "Sắp xếp lịch tư vấn từ sớm đến muộn");
+            document.getElementById("consultation-date-filter").value = state.consultationDate;
+            document.getElementById("consultation-date-clear").classList.toggle("hidden", !state.consultationDate);
+
+            document.getElementById("table-count-label").textContent = `${list.length} khách hàng`;
+            const tbody = document.getElementById("customers-tbody");
+            const emptyState = document.getElementById("table-empty-state");
+
+            if (list.length === 0) {
+                tbody.innerHTML = "";
+                emptyState.classList.remove("hidden");
+                return;
+            }
+
+            emptyState.classList.add("hidden");
+
+            tbody.innerHTML = list.map(c => {
+                const status = classifyCustomer(c);
+                const tongPhi = Number(c.tongPhi) || 0;
+                const tongDaNop = calcTotalPaid(c);
+                const conLai = Math.max(0, tongPhi - tongDaNop);
+                const daNopHienThi = state.activeKpiFilter === "REVENUE" ? calcPaidInMonth(c, ym) : tongDaNop;
+
+                // Cột Nhân viên: Nếu là Admin và data chưa có nhân viên -> Hiện dropdown giao việc nhanh
+                let staffCellHtml = "";
+                if (isAdmin && (!c.nhanVien || c.nhanVien.trim() === "")) {
+                    const options = state.users.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join("");
+                    staffCellHtml = `
+                        <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
+                            <select id="assign-select-${c.id}" class="text-xs border border-[#D1DFCE] rounded px-2 py-1 bg-white text-[#132A1C]">
+                                <option value="">Chọn NV...</option>
+                                ${options}
+                            </select>
+                            <button type="button" onclick="quickAssignStaff('${c.id}')"
+                                class="px-2.5 py-1 bg-[#156035] hover:bg-[#0F4927] text-white text-[11px] font-semibold rounded">
+                                Giao việc
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    staffCellHtml = c.nhanVien
+                        ? `<span class="inline-block px-2 py-0.5 text-xs font-semibold bg-[#F6F9F5] border border-[#D1DFCE] rounded text-[#132A1C]">${escapeHtml(c.nhanVien)}</span>`
+                        : `<span class="text-xs text-[#4A6354] italic">Chưa giao</span>`;
+                }
+
+                const scheduleText = (c.ngayTuVan || c.gioTuVan)
+                    ? `<div class="font-semibold text-[#132A1C]">${escapeHtml(formatDateVN(c.ngayTuVan))}</div><div class="text-[11px] text-[#4A6354]">${escapeHtml(c.gioTuVan || "--:--")}</div>`
+                    : `<span class="text-xs text-[#4A6354]">Chưa hẹn</span>`;
+
+                return `
+                    <tr onclick="openCustomerModal('${c.id}')" class="hover:bg-[#F6F9F5] cursor-pointer transition-colors">
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] whitespace-nowrap">
+                            <span class="inline-block px-2.5 py-1 text-[11px] font-bold rounded border ${status.badgeClass}">
+                                ${status.label}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] text-xs text-[#4A6354] whitespace-nowrap">
+                            ${escapeHtml(formatDateVN(c.ngayDangKy))}
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE]">
+                            <div class="font-bold text-[#156035] hover:underline">${escapeHtml(c.hoTenKhach || "Chưa có tên")}</div>
+                            ${c.hoTenThanNhan ? `<div class="text-[11px] text-[#4A6354]">TN: ${escapeHtml(c.hoTenThanNhan)}</div>` : ""}
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE]">
+                            <div class="font-semibold text-[#132A1C]">${escapeHtml(c.sdt || "")}</div>
+                            <div class="text-[11px] text-[#4A6354]">${escapeHtml(c.nguonDangKy || "")}</div>
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] whitespace-nowrap">
+                            ${scheduleText}
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] whitespace-nowrap">
+                            ${staffCellHtml}
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] text-right font-semibold text-[#132A1C] whitespace-nowrap">
+                            ${formatCurrency(tongPhi)}
+                        </td>
+                        <td class="py-3 px-4 border-r border-[#D1DFCE] text-right font-semibold text-[#558B2F] whitespace-nowrap">
+                            ${formatCurrency(daNopHienThi)}
+                        </td>
+                        <td class="py-3 px-4 text-right font-semibold ${conLai > 0 ? 'text-amber-700' : 'text-[#4A6354]'} whitespace-nowrap">
+                            ${formatCurrency(conLai)}
+                        </td>
+                    </tr>
+                `;
+            }).join("");
+        }
+
+        /**
+         * ADMIN GIAO VIỆC NHANH TRỰC TIẾP TRÊN BẢNG
+         */
+        async function quickAssignStaff(customerId) {
+            const select = document.getElementById(`assign-select-${customerId}`);
+            const staffUsername = select ? select.value : "";
+            if (!staffUsername) {
+                showToast("Vui lòng chọn nhân viên trước khi bấm Giao việc.", "error");
+                return;
+            }
+
+            const customer = state.customers.find(c => c.id === customerId);
+            if (!customer || select.disabled) return;
+            select.disabled = true;
+            try {
+                const updated = { ...customer, nhanVien: staffUsername };
+                updated.tinhTrang = classifyCustomer(updated).label;
+                const saved = await pushCustomerToGoogleSheet("updateRow", updated);
+                if (saved) showToast(`Đã giao khách "${saved.hoTenKhach}" cho ${saved.nhanVien}`, "success");
+            } finally {
+                select.disabled = false;
+            }
+        }
+
+        /**
+         * MỞ & ĐÓNG OVERLAY CHI TIẾT KHÁCH HÀNG (26 CỘT)
+         */
+        function openCustomerModal(customerId) {
+            const modal = document.getElementById("customer-modal");
+            const isAdmin = isAdminRole();
+
+            // Render 6 dòng nộp tiền
+            const instContainer = document.getElementById("installments-container");
+            instContainer.innerHTML = [1, 2, 3, 4, 5, 6].map(n => `
+                <div class="grid grid-cols-12 gap-2 items-center">
+                    <div class="col-span-2 text-xs font-semibold text-[#4A6354]">Lần ${n}</div>
+                    <div class="col-span-5">
+                        <input type="text" inputmode="numeric" id="field-nopLan${n}" placeholder="0" oninput="formatInstallment(this, ${n})"
+                            class="w-full px-2 py-1 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                    </div>
+                    <div class="col-span-5">
+                        <input type="date" id="field-ngayNopLan${n}"
+                            class="w-full px-2 py-1 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
+                    </div>
+                </div>
+            `).join("");
+
+            // Cập nhật danh sách nhân viên trong select của Modal
+            const staffSelect = document.getElementById("field-nhanVien");
+            staffSelect.innerHTML = `<option value="">-- Chưa phân bổ (Trống) --</option>` +
+                state.users.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} (${escapeHtml(u.role)})</option>`).join("");
+
+            if (customerId) {
+                const c = state.customers.find(item => item.id === customerId);
+                if (!c) return;
+
+                document.getElementById("modal-customer-title").textContent = `Hồ Sơ: ${c.hoTenKhach}`;
+                document.getElementById("modal-row-indicator").textContent = `Dòng hệ thống #${c.rowIndex || "mới"}`;
+
+                state.editingRevision = c.revision;
+                document.getElementById("field-id").value = c.id;
+                document.getElementById("field-rowIndex").value = c.rowIndex || "";
+                document.getElementById("field-ngayDangKy").value = c.ngayDangKy || "";
+                document.getElementById("field-hoTenKhach").value = c.hoTenKhach || "";
+                document.getElementById("field-hoTenThanNhan").value = c.hoTenThanNhan || "";
+                document.getElementById("field-sdt").value = c.sdt || "";
+                document.getElementById("field-email").value = c.email || "";
+                document.getElementById("field-nguonDangKy").value = c.nguonDangKy || "";
+                document.getElementById("field-nhanVien").value = c.nhanVien || "";
+                document.getElementById("field-ngayTuVan").value = c.ngayTuVan || "";
+                document.getElementById("field-gioTuVan").value = c.gioTuVan || "";
+                document.getElementById("field-tinhTrangMat").value = c.tinhTrangMat || "";
+                document.getElementById("field-khongQuanTam").checked = (c.tinhTrang === "Không quan tâm");
+                document.getElementById("field-tongPhi").value = c.tongPhi ? formatMoneyDigits(String(c.tongPhi)) : "";
+
+                for (let i = 1; i <= 6; i++) {
+                    document.getElementById(`field-nopLan${i}`).value = c[`nopLan${i}`] ? Number(c[`nopLan${i}`]).toLocaleString("en-US") : "";
+                    document.getElementById(`field-ngayNopLan${i}`).value = c[`ngayNopLan${i}`] || "";
+                }
+            } else {
+                const today = new Date().toISOString().split("T")[0];
+                document.getElementById("modal-customer-title").textContent = "Thêm Khách Hàng Mới";
+                document.getElementById("modal-row-indicator").textContent = "Dòng mới";
+
+                state.newCustomerRequestId = crypto.randomUUID();
+                document.getElementById("field-id").value = "";
+                document.getElementById("field-rowIndex").value = "";
+                document.getElementById("field-ngayDangKy").value = today;
+                document.getElementById("field-hoTenKhach").value = "";
+                document.getElementById("field-hoTenThanNhan").value = "";
+                document.getElementById("field-sdt").value = "";
+                document.getElementById("field-email").value = "";
+                document.getElementById("field-nguonDangKy").value = "";
+                document.getElementById("field-nhanVien").value = isAdmin ? "" : state.currentUser.username;
+                document.getElementById("field-ngayTuVan").value = "";
+                document.getElementById("field-gioTuVan").value = "";
+                document.getElementById("field-tinhTrangMat").value = "";
+                document.getElementById("field-khongQuanTam").checked = false;
+                document.getElementById("field-tongPhi").value = "";
+
+                for (let i = 1; i <= 6; i++) {
+                    document.getElementById(`field-nopLan${i}`).value = "";
+                    document.getElementById(`field-ngayNopLan${i}`).value = "";
+                }
+            }
+
+            if (!isAdmin) {
+                staffSelect.disabled = true;
+                staffSelect.classList.add("bg-[#F6F9F5]", "text-[#4A6354]");
+                document.getElementById("staff-lock-note").classList.remove("hidden");
+            } else {
+                staffSelect.disabled = false;
+                staffSelect.classList.remove("bg-[#F6F9F5]", "text-[#4A6354]");
+                document.getElementById("staff-lock-note").classList.add("hidden");
+            }
+
+            updateModalLivePreview();
+            modal.classList.remove("hidden");
+        }
+
+        function closeCustomerModal() {
+            document.getElementById("customer-modal").classList.add("hidden");
+        }
+
+        /**
+         * TÍNH TOÁN REAL-TIME CÔNG NỢ & BADGE TRẠNG THÁI TRÊN OVERLAY
+         */
+        function updateModalLivePreview() {
+            const tempObj = collectFormCustomerData();
+            const status = classifyCustomer(tempObj);
+
+            const badgeContainer = document.getElementById("modal-live-status-badge");
+            badgeContainer.innerHTML = `
+                <span class="inline-block px-2.5 py-0.5 text-xs font-bold rounded border ${status.badgeClass}">
+                    ${status.label}
+                </span>
+            `;
+
+            document.getElementById("display-tongDaNop").textContent = formatCurrency(tempObj.tongDaNop);
+            document.getElementById("display-conLai").textContent = formatCurrency(tempObj.conLai);
+        }
+
+        function collectFormCustomerData() {
+            const tongPhi = Number(document.getElementById("field-tongPhi").value.replace(/,/g, "")) || 0;
+            let tongDaNop = 0;
+            const installments = {};
+
+            for (let i = 1; i <= 6; i++) {
+                const amt = Number(document.getElementById(`field-nopLan${i}`).value.replace(/,/g, "")) || 0;
+                const dt = document.getElementById(`field-ngayNopLan${i}`).value || "";
+                installments[`nopLan${i}`] = amt;
+                installments[`ngayNopLan${i}`] = dt;
+                tongDaNop += amt;
+            }
+
+            const conLai = Math.max(0, tongPhi - tongDaNop);
+            const isNotInterested = document.getElementById("field-khongQuanTam").checked;
+
+            const data = {
+                id: document.getElementById("field-id").value || ("c_" + Date.now()),
+                rowIndex: Number(document.getElementById("field-rowIndex").value) || null,
+                revision: state.editingRevision,
+                ngayDangKy: document.getElementById("field-ngayDangKy").value,
+                hoTenKhach: document.getElementById("field-hoTenKhach").value.trim(),
+                hoTenThanNhan: document.getElementById("field-hoTenThanNhan").value.trim(),
+                sdt: document.getElementById("field-sdt").value.trim(),
+                email: document.getElementById("field-email").value.trim(),
+                nguonDangKy: document.getElementById("field-nguonDangKy").value.trim(),
+                gioTuVan: document.getElementById("field-gioTuVan").value,
+                ngayTuVan: document.getElementById("field-ngayTuVan").value,
+                nhanVien: document.getElementById("field-nhanVien").value,
+                tinhTrangMat: document.getElementById("field-tinhTrangMat").value,
+                tinhTrang: isNotInterested ? "Không quan tâm" : "",
+                tongPhi: tongPhi,
+                tongDaNop: tongDaNop,
+                ...installments,
+                conLai: conLai
+            };
+
+            if (!isNotInterested) {
+                data.tinhTrang = classifyCustomer(data).label;
+            }
+
+            return data;
+        }
+
+        /**
+         * LƯU THAY ĐỔI KHÁCH HÀNG & ĐỒNG BỘ LÊN GOOGLE SHEET
+         */
+        async function saveCustomerData(e) {
+            e.preventDefault();
+            const btn = document.getElementById("btn-save-customer");
+            if (btn.disabled) return;
+            btn.disabled = true;
+            btn.textContent = "Đang lưu...";
+
+            try {
+                const existingId = document.getElementById("field-id").value;
+                const customer = collectFormCustomerData();
+                const saved = await pushCustomerToGoogleSheet(existingId ? "updateRow" : "addRow", customer,
+                    existingId ? undefined : state.newCustomerRequestId);
+                if (saved) {
+                    closeCustomerModal();
+                    showToast(saved.pendingPayment ? "Đã gửi cập nhật nộp tiền để Admin duyệt." :
+                        "Đã lưu thay đổi vào Hệ thống!", saved.pendingPayment ? "info" : "success");
+                }
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "Lưu thay đổi";
+            }
+        }
+
+        async function pushCustomerToGoogleSheet(action, customer, requestId) {
+            try {
+                const result = await requestData(action, {
+                    rowIndex: customer.rowIndex,
+                    revision: customer.revision,
+                    requestId,
+                    data: CUSTOMER_COLUMNS.map(field => customer[field])
+                });
+                if (!result) return null;
+                if (result.status === "conflict" || result.status === "forbidden") {
+                    showToast("Dòng dữ liệu đã thay đổi. Vui lòng mở lại hồ sơ để kiểm tra trước khi lưu.", "error");
+                    await loadDataFromSheets();
+                    if (state.currentUser) refreshDashboardAndTable();
+                    return null;
+                }
+                if (result.status !== "success" || !result.row) {
+                    throw new Error("Apps Script save request failed");
+                }
+
+                ++customerReadVersion;
+                const saved = parseCustomerRow(result.row);
+                const index = state.customers.findIndex(c => c.id === saved.id);
+                if (index === -1) state.customers.unshift(saved);
+                else state.customers[index] = saved;
+                refreshDashboardAndTable();
+                return { ...saved, pendingPayment: result.pendingPayment === true };
+            } catch {
+                showToast("Chưa xác nhận được việc lưu vào Hệ thống. Vui lòng thử lại.", "error");
+                return null;
+            }
+        }
+
+        async function showPaymentPage(show, refresh = true) {
+            if (show && !isAdminRole()) return;
+            document.getElementById("crm-dashboard").classList.toggle("hidden", show);
+            document.getElementById("payment-page").classList.toggle("hidden", !show);
+            document.getElementById("staff-page").classList.add("hidden");
+            document.getElementById("staff-nav-label").textContent = "Quản lý nhân viên";
+            document.getElementById("payment-nav-label").textContent = show ? "Về CRM" : "Duyệt nộp tiền";
+            if (show) {
+                await loadPaymentRequests();
+            } else if (refresh && state.dataSessionToken) {
+                if (await loadDataFromSheets(true)) refreshDashboardAndTable();
+            }
+        }
+
+        async function sendStaffPresence() {
+            if (!state.currentUser || isAdminRole() || !state.dataSessionToken || presenceInProgress ||
+                Date.now() - lastPresenceAt < 10000) return;
+            presenceInProgress = true;
+            lastPresenceAt = Date.now();
+            try {
+                await requestData("staffPresence");
+            } catch {
+                // Lần tiếp theo sẽ thử lại nếu kết nối bị gián đoạn.
+            } finally {
+                presenceInProgress = false;
+            }
+        }
+
+        async function showStaffPage() {
+            if (!isAdminRole()) return;
+            if (isStaffPageVisible()) {
+                await showPaymentPage(false);
+                return;
+            }
+            document.getElementById("crm-dashboard").classList.add("hidden");
+            document.getElementById("payment-page").classList.add("hidden");
+            document.getElementById("payment-nav-label").textContent = "Duyệt nộp tiền";
+            document.getElementById("staff-page").classList.remove("hidden");
+            document.getElementById("staff-nav-label").textContent = "Về CRM";
+            await loadStaffManagement();
+        }
+
+        function isStaffPageVisible() {
+            return !document.getElementById("staff-page").classList.contains("hidden");
+        }
+
+        async function loadStaffManagement(silent = false) {
+            if (!isAdminRole() || !isStaffPageVisible() || allocationSaveInProgress) return;
+            const version = ++staffReadVersion;
+            const status = document.getElementById("staff-management-status");
+            if (!silent) status.textContent = "Đang tải danh sách nhân viên...";
+            try {
+                const result = await requestData("getStaffManagement");
+                if (version !== staffReadVersion || !isAdminRole() || !isStaffPageVisible()) return;
+                if (result?.status !== "success") throw new Error("Unable to load staff");
+                renderStaffManagement(result);
+            } catch {
+                if (!silent && version === staffReadVersion && isStaffPageVisible()) {
+                    status.textContent = "Chưa tải được danh sách nhân viên.";
+                }
+            }
+        }
+
+        function renderStaffManagement(result) {
+            const controls = document.getElementById("allocation-controls");
+            controls.disabled = allocationSaveInProgress;
+            controls.querySelectorAll('input[name="allocation-mode"]').forEach(input => {
+                input.checked = input.value === result.mode;
+            });
+            document.getElementById("staff-management-status").textContent = result.ready
+                ? "" : "Để bật phân bổ theo lượt, chạy caiDatPhanBoTuDong một lần trong Apps Script Data.";
+            const list = document.getElementById("staff-online-list");
+            const staff = [...result.staff].sort((a, b) => Number(b.online) - Number(a.online));
+            const markup = staff.map(person => `
+                <li class="flex items-center justify-between gap-3 border-b border-[#D1DFCE] px-4 py-3 last:border-b-0">
+                    <span class="break-all font-semibold text-[#132A1C]">${escapeHtml(person.username)}</span>
+                    <span class="shrink-0 rounded px-2 py-1 text-xs font-semibold ${person.online ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-600'}">${person.online ? "Online" : "Offline"}</span>
+                </li>`).join("");
+            list.innerHTML = markup || '<li class="px-4 py-3 text-[#4A6354]">Chưa có tài khoản nhân viên.</li>';
+        }
+
+        async function saveAllocationMode(mode) {
+            if (!isAdminRole() || allocationSaveInProgress) return;
+            ++staffReadVersion;
+            allocationSaveInProgress = true;
+            const controls = document.getElementById("allocation-controls");
+            controls.disabled = true;
+            try {
+                const result = await requestData("setAllocationMode", {mode});
+                if (result?.status === "allocation_setup_required") {
+                    showToast("Anh cần chạy caiDatPhanBoTuDong trong Apps Script Data trước.", "info");
+                } else if (result?.status === "success") {
+                    showToast("Đã lưu chế độ phân bổ.", "success");
+                } else {
+                    throw new Error("Unable to save allocation mode");
+                }
+            } catch {
+                showToast("Chưa xác nhận được chế độ phân bổ. Vui lòng thử lại.", "error");
+            } finally {
+                allocationSaveInProgress = false;
+                controls.disabled = false;
+                await loadStaffManagement();
+            }
+        }
+
+        function updatePaymentBadge(count) {
+            const badge = document.getElementById("payment-nav-count");
+            const label = count > 0 ? `${count} yêu cầu chờ duyệt` : "";
+            if (badge.textContent !== String(count || "")) badge.textContent = count || "";
+            badge.classList.toggle("hidden", !count);
+            badge.setAttribute("aria-label", label);
+            badge.title = label;
+        }
+
+        async function refreshPaymentBadge() {
+            if (isAdminRole() && state.dataSessionToken && !paymentReviewsInProgress) {
+                await loadPaymentRequests(true, true);
+            }
+        }
+
+        async function loadPaymentRequests(silent = false, countOnly = false) {
+            const version = ++paymentReadVersion;
+            const token = state.dataSessionToken;
+            const list = document.getElementById("payment-request-list");
+            const status = document.getElementById("payment-request-status");
+            if (!silent) status.textContent = "Đang tải yêu cầu...";
+            try {
+                const result = await requestData("listPaymentRequests");
+                if (version !== paymentReadVersion || token !== state.dataSessionToken ||
+                    (silent && paymentReviewsInProgress)) return;
+                if (result?.status !== "success" || !Array.isArray(result.requests)) throw new Error("Unable to load requests");
+                updatePaymentBadge(result.requests.length);
+                if (countOnly) return;
+                status.textContent = result.requests.length ? result.requests.length + " yêu cầu chờ duyệt" : "Hiện chưa có yêu cầu chờ duyệt.";
+                const markup = result.requests.map(entry => {
+                    const changes = entry.after.map(([amount, date], i) => {
+                        const [oldAmount, oldDate] = entry.before[i];
+                        if (oldAmount === amount && oldDate === date) return "";
+                        return `<li>Lần ${i + 1} · ${formatCurrency(oldAmount)} (${escapeHtml(formatDateVN(oldDate))}) → <strong>${formatCurrency(amount)} (${escapeHtml(formatDateVN(date))})</strong></li>`;
+                    }).join("");
+                    return `<article class="rounded-lg border border-[#D1DFCE] bg-white p-4 space-y-3">
+                        <div><h2 class="font-bold text-[#132A1C]">${escapeHtml(entry.customer)}</h2>
+                        <p class="text-xs text-[#4A6354]">${escapeHtml(entry.staff)} · ${escapeHtml(entry.submittedAt)}</p></div>
+                        <ul class="space-y-1 text-sm">${changes}</ul>
+                        <div class="flex flex-wrap gap-2">
+                            <button type="button" data-id="${escapeHtml(entry.id)}" onclick="reviewPaymentRequest(this, true)" class="rounded bg-[#156035] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">Xác nhận</button>
+                            <button type="button" data-id="${escapeHtml(entry.id)}" onclick="reviewPaymentRequest(this, false)" class="rounded border border-red-200 px-3 py-1.5 text-sm font-semibold text-red-700 disabled:opacity-50">Từ chối</button>
+                        </div>
+                    </article>`;
+                }).join("");
+                if (list.innerHTML !== markup) list.innerHTML = markup;
+            } catch {
+                if (!silent && version === paymentReadVersion && token === state.dataSessionToken) {
+                    status.textContent = "Chưa tải được yêu cầu. Vui lòng bấm Tải lại.";
+                }
+            }
+        }
+
+        async function reviewPaymentRequest(button, approve) {
+            if (!isAdminRole() || button.disabled) return;
+            const buttons = button.closest("article").querySelectorAll("button");
+            buttons.forEach(item => { item.disabled = true; });
+            ++paymentReviewsInProgress;
+            ++paymentReadVersion;
+            try {
+                const result = await requestData(approve ? "approvePaymentRequest" : "rejectPaymentRequest", { id: button.dataset.id });
+                if (result?.status === "conflict" || result?.status === "payment_formula") {
+                    const message = result.status === "conflict"
+                        ? "Hồ sơ hoặc khoản nộp đã thay đổi. Hãy kiểm tra, từ chối yêu cầu cũ và gửi yêu cầu mới."
+                        : "Ô tiền hoặc ngày đang dùng công thức trong Hệ thống. Hãy kiểm tra trước khi duyệt.";
+                    showToast(message, "error");
+                    return;
+                }
+                if (result?.status === "not_pending") {
+                    showToast("Yêu cầu đã được xử lý.", "info");
+                    await loadPaymentRequests();
+                    return;
+                }
+                if (result?.status !== "success") throw new Error("Unable to review request");
+                showToast(approve ? "Đã xác nhận cập nhật nộp tiền." : "Đã từ chối yêu cầu.", "success");
+                if (approve) {
+                    await loadDataFromSheets();
+                    if (state.currentUser) refreshDashboardAndTable();
+                }
+                await loadPaymentRequests();
+            } catch {
+                showToast("Chưa xác nhận được kết quả xử lý. Anh vui lòng tải lại danh sách.", "error");
+            } finally {
+                --paymentReviewsInProgress;
+                buttons.forEach(item => { item.disabled = false; });
+            }
+        }
+
+        function todayInVietnam() {
+            const parts = new Intl.DateTimeFormat("en-CA", {
+                timeZone: "Asia/Ho_Chi_Minh", year: "numeric", month: "2-digit", day: "2-digit"
+            }).formatToParts(new Date());
+            const value = type => parts.find(part => part.type === type).value;
+            return `${value("year")}-${value("month")}-${value("day")}`;
+        }
+
+        function formatMoneyDigits(digits) {
+            return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function formatMoneyInput(input) {
+            const digits = input.value.replace(/\D/g, "");
+            input.value = formatMoneyDigits(digits);
+            return digits;
+        }
+
+        function formatInstallment(input, installment) {
+            const digits = formatMoneyInput(input);
+            const date = document.getElementById(`field-ngayNopLan${installment}`);
+            if (Number(digits) > 0 && !date.value) date.value = todayInVietnam();
+            updateModalLivePreview();
+        }
+
+        function calcPaidInMonth(customer, month) {
+            let total = 0;
+            for (let i = 1; i <= 6; i++) {
+                const amount = Number(customer[`nopLan${i}`]) || 0;
+                if (amount > 0 && (customer[`ngayNopLan${i}`] || "").startsWith(month + "-")) {
+                    total += amount;
+                }
+            }
+            return total;
+        }
+
+        function calcTotalPaid(c) {
+            return (Number(c.nopLan1) || 0) + (Number(c.nopLan2) || 0) + (Number(c.nopLan3) || 0) +
+                   (Number(c.nopLan4) || 0) + (Number(c.nopLan5) || 0) + (Number(c.nopLan6) || 0);
+        }
+
+        function formatCurrency(num) {
+            const n = Number(num) || 0;
+            return n.toLocaleString("en-US") + " đ";
+        }
+
+        function formatDateVN(isoDate) {
+            if (!isoDate) return "--/--/----";
+            const parts = isoDate.split("-");
+            if (parts.length !== 3) return isoDate;
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        }
+
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
+        }
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById("toast-container");
+            const toast = document.createElement("div");
+
+            const styles = {
+                success: "bg-[#156035] text-white border-[#0F4927]",
+                error: "bg-red-800 text-white border-red-950",
+                info: "bg-[#132A1C] text-white border-[#132A1C]"
+            };
+
+            toast.className = `pointer-events-auto px-4 py-2.5 rounded border text-xs font-semibold flex items-center gap-2 ${styles[type] || styles.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
