@@ -502,7 +502,7 @@
                             <label for="field-tinhTrangMat" class="block text-xs font-semibold text-[#4A6354]">Tình trạng mắt</label>
                             <textarea id="field-tinhTrangMat" rows="9" maxlength="50000"
                                 placeholder="Ghi tình trạng mắt, kết quả kiểm tra, ghi chú tư vấn..."
-                                class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-xs leading-relaxed text-[#132A1C]"></textarea>
+                                class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-sm leading-relaxed text-[#132A1C]"></textarea>
                         </div>
                     </div>
 
@@ -553,13 +553,13 @@
                             <label for="customer-photo-before" class="block text-sm font-semibold text-[#132A1C]">Ảnh trước tập và phiếu khám</label>
                             <input id="customer-photo-before" type="file" multiple accept="image/jpeg,image/png,image/webp"
                                 onchange="uploadCustomerPhotos(this, 'before')" class="my-2 block max-w-full text-xs text-[#4A6354]">
-                            <ul id="customer-photos-before" class="space-y-1"></ul>
+                            <ul id="customer-photos-before" class="grid grid-cols-2 gap-2 lg:grid-cols-3"></ul>
                         </div>
                         <div>
                             <label for="customer-photo-after" class="block text-sm font-semibold text-[#132A1C]">Ảnh mắt sau tập</label>
                             <input id="customer-photo-after" type="file" multiple accept="image/jpeg,image/png,image/webp"
                                 onchange="uploadCustomerPhotos(this, 'after')" class="my-2 block max-w-full text-xs text-[#4A6354]">
-                            <ul id="customer-photos-after" class="space-y-1"></ul>
+                            <ul id="customer-photos-after" class="grid grid-cols-2 gap-2 lg:grid-cols-3"></ul>
                         </div>
                     </div>
                     <p class="mt-2 text-xs text-[#4A6354]">JPG, PNG hoặc WebP, tối đa 4 MB mỗi ảnh.</p>
@@ -1673,32 +1673,80 @@
                     photoStatus(photoMessage(result?.status));
                     return false;
                 }
+                const gallery = [];
+                context.gallery = gallery;
                 for (const category of ["before", "after"]) {
                     const list = document.getElementById("customer-photos-" + category);
                     list.replaceChildren();
                     for (const file of result.photos[category]) {
                         const li = document.createElement("li");
+                        li.className = "min-w-0";
                         const button = document.createElement("button");
                         button.type = "button";
-                        button.className = "block max-w-full truncate text-left text-sm font-medium text-[#156035] hover:underline";
-                        button.textContent = file.name;
-                        button.title = file.name;
+                        button.className = "block w-full overflow-hidden rounded border border-[#D1DFCE] bg-white text-left hover:border-[#156035] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#156035]";
+                        button.title = "Xem ảnh lớn: " + file.name;
+                        button.setAttribute("aria-label", button.title);
                         button.addEventListener("click", () => viewCustomerPhoto(context, category, file));
+
+                        const tile = document.createElement("span");
+                        tile.className = "relative flex aspect-[4/3] items-center justify-center bg-[#ECF5E3]";
+                        const placeholder = document.createElement("span");
+                        placeholder.className = "px-1 text-center text-xs text-[#4A6354]";
+                        placeholder.textContent = "Đang tải ảnh…";
+                        const image = document.createElement("img");
+                        image.className = "hidden absolute inset-0 h-full w-full object-contain";
+                        image.alt = "";
+                        image.decoding = "async";
+                        tile.append(placeholder, image);
+
+                        const name = document.createElement("span");
+                        name.className = "block truncate px-2 py-1 text-xs font-medium text-[#156035]";
+                        name.textContent = file.name;
+                        button.append(tile, name);
                         li.append(button);
                         list.append(li);
+                        gallery.push({category, fileId: file.id, image, placeholder});
                     }
                     if (!list.children.length) {
                         const empty = document.createElement("li");
-                        empty.className = "text-xs text-[#4A6354]";
+                        empty.className = "col-span-full text-xs text-[#4A6354]";
                         empty.textContent = "Chưa có ảnh.";
                         list.append(empty);
                     }
                 }
+                void loadPhotoThumbnails(context, gallery, 0);
+                void loadPhotoThumbnails(context, gallery, 1);
                 if (clearStatus) photoStatus("");
                 return true;
             } catch {
                 if (photoContext === context) photoStatus(photoMessage());
                 return false;
+            }
+        }
+
+        async function loadPhotoThumbnails(context, gallery, start) {
+            const isCurrent = () => photoContext === context && context.gallery === gallery;
+            for (let index = start; index < gallery.length && isCurrent(); index += 2) {
+                const {category, fileId, image, placeholder} = gallery[index];
+                try {
+                    const result = await photoRequest("viewCustomerPhoto", context, {category, fileId, thumbnail: true});
+                    if (!isCurrent()) return;
+                    if (result?.status !== "success" || !PHOTO_TYPES.includes(result.mimeType)) {
+                        placeholder.textContent = "Bấm để xem ảnh";
+                        continue;
+                    }
+                    image.addEventListener("load", () => {
+                        if (!isCurrent()) return;
+                        image.classList.remove("hidden");
+                        placeholder.classList.add("hidden");
+                    }, {once: true});
+                    image.addEventListener("error", () => {
+                        if (isCurrent()) placeholder.textContent = "Bấm để xem ảnh";
+                    }, {once: true});
+                    image.src = `data:${result.mimeType};base64,${result.base64}`;
+                } catch {
+                    if (isCurrent()) placeholder.textContent = "Bấm để xem ảnh";
+                }
             }
         }
 
