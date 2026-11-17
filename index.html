@@ -378,8 +378,8 @@
                         class="whitespace-nowrap rounded border border-[#156035] bg-[#156035] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#0F4927] disabled:opacity-50 sm:px-4">
                         Lưu thay đổi
                     </button>
-                    <button type="button" onclick="closeCustomerModal()" aria-label="Đóng hồ sơ" class="flex h-8 w-8 items-center justify-center rounded border border-[#D1DFCE] bg-white font-bold text-[#132A1C] hover:bg-[#ECF5E3]">
-                        &times;
+                    <button type="button" onclick="closeCustomerModal()" aria-label="Đóng hồ sơ" aria-keyshortcuts="Escape" title="Đóng hồ sơ (Esc)" class="flex h-8 items-center justify-center rounded border border-[#D1DFCE] bg-white px-3 text-xs font-bold text-[#132A1C] hover:bg-[#ECF5E3]">
+                        Đóng
                     </button>
                 </div>
             </div>
@@ -1446,6 +1446,13 @@
             updateModalLivePreview();
             modal.classList.remove("hidden");
         }
+
+        document.addEventListener("keydown", function(event) {
+            if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
+            if (document.getElementById("customer-modal").classList.contains("hidden")) return;
+            event.preventDefault();
+            closeCustomerModal();
+        });
 
         function closeCustomerModal() {
             document.getElementById("customer-modal").classList.add("hidden");
