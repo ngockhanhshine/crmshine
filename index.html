@@ -449,6 +449,13 @@
                                 class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]">
                         </div>
 
+                        <div>
+                            <label for="field-diaChi" class="block text-xs font-semibold text-[#4A6354] mb-1">Địa chỉ</label>
+                            <textarea id="field-diaChi" rows="2" maxlength="1000" autocomplete="street-address"
+                                placeholder="Nhập địa chỉ của khách..."
+                                class="w-full resize-y px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white text-[#132A1C]"></textarea>
+                        </div>
+
                         <div class="pt-2 border-t border-[#D1DFCE]">
                             <label class="block text-xs font-semibold text-[#4A6354] mb-1">Nhân viên phụ trách</label>
                             <select id="field-nhanVien" onchange="updateModalLivePreview()"
@@ -495,7 +502,7 @@
                             <label for="field-tinhTrangMat" class="block text-xs font-semibold text-[#4A6354]">Tình trạng mắt</label>
                             <textarea id="field-tinhTrangMat" rows="9" maxlength="50000"
                                 placeholder="Ghi tình trạng mắt, kết quả kiểm tra, ghi chú tư vấn..."
-                                class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-xs leading-relaxed text-[#132A1C]"></textarea>
+                                class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-sm leading-relaxed text-[#132A1C]"></textarea>
                         </div>
                     </div>
 
@@ -540,6 +547,28 @@
 
                 </div>
 
+                <section id="customer-photo-section" class="mt-5 rounded-md border border-[#D1DFCE] bg-[#F6F9F5] p-4">
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="customer-photo-before" class="block text-sm font-semibold text-[#132A1C]">Ảnh trước tập và phiếu khám</label>
+                            <input id="customer-photo-before" type="file" multiple accept="image/jpeg,image/png,image/webp"
+                                onchange="uploadCustomerPhotos(this, 'before')" class="my-2 block max-w-full text-xs text-[#4A6354]">
+                            <ul id="customer-photos-before" class="space-y-1"></ul>
+                        </div>
+                        <div>
+                            <label for="customer-photo-after" class="block text-sm font-semibold text-[#132A1C]">Ảnh mắt sau tập</label>
+                            <input id="customer-photo-after" type="file" multiple accept="image/jpeg,image/png,image/webp"
+                                onchange="uploadCustomerPhotos(this, 'after')" class="my-2 block max-w-full text-xs text-[#4A6354]">
+                            <ul id="customer-photos-after" class="space-y-1"></ul>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-[#4A6354]">JPG, PNG hoặc WebP, tối đa 4 MB mỗi ảnh.</p>
+                    <p id="customer-photo-status" role="status" class="mt-1 text-xs font-medium text-[#156035]"></p>
+                    <figure id="customer-photo-preview" class="mt-3 hidden rounded border border-[#D1DFCE] bg-white p-3">
+                        <button type="button" onclick="closeCustomerPhotoPreview()" class="mb-2 rounded border px-2 py-1 text-xs font-semibold">Đóng ảnh</button>
+                        <img id="customer-photo-image" class="mx-auto max-h-[60vh] max-w-full object-contain" alt="">
+                    </figure>
+                </section>
             </form>
         </div>
     </div>
@@ -995,8 +1024,8 @@
             }
         }
 
-        function parseCustomerRow({ rowIndex, revision, data, customerKey }) {
-            const customer = { id: `row_${rowIndex}`, rowIndex, revision, customerKey };
+        function parseCustomerRow({ rowIndex, revision, data, customerKey, address }) {
+            const customer = { id: `row_${rowIndex}`, rowIndex, revision, customerKey, diaChi: address || "" };
             CUSTOMER_COLUMNS.forEach((field, col) => {
                 const value = data[col] ?? "";
                 if (CUSTOMER_AMOUNT_COLUMNS.includes(col)) {
@@ -1593,6 +1622,169 @@
         /**
          * MỞ & ĐÓNG OVERLAY CHI TIẾT KHÁCH HÀNG (26 CỘT)
          */
+        const PHOTO_LIMIT = 4 * 1024 * 1024;
+        const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+        let photoContext = null;
+
+        function photoStatus(message) {
+            document.getElementById("customer-photo-status").textContent = message;
+        }
+
+        function setPhotoContext(customerId) {
+            const customer = state.customers.find(item => item.id === customerId);
+            photoContext = customer ? {rowIndex: customer.rowIndex, customerKey: customer.customerKey, busy: false} : null;
+            document.getElementById("customer-photo-preview").classList.add("hidden");
+            document.getElementById("customer-photo-image").removeAttribute("src");
+            for (const category of ["before", "after"]) {
+                const input = document.getElementById("customer-photo-" + category);
+                input.value = "";
+                input.disabled = !photoContext;
+                document.getElementById("customer-photos-" + category).replaceChildren();
+            }
+            if (!photoContext) {
+                photoStatus("Lưu hồ sơ trước khi tải ảnh.");
+                return;
+            }
+            photoStatus("Đang tải danh sách ảnh…");
+            void loadCustomerPhotos(photoContext);
+        }
+
+        function photoMessage(status) {
+            switch (status) {
+                case "photo_setup_required": return "Chưa cài đặt kho ảnh. Hãy báo Admin chạy caiDatLuuAnhCRM.";
+                case "forbidden": return "Anh không có quyền truy cập ảnh của khách này.";
+                case "conflict": return "Hồ sơ đã thay đổi. Hãy đóng và mở lại hồ sơ.";
+                case "photo_binding_conflict": return "Thư mục ảnh không còn khớp với hồ sơ. Hãy báo Admin kiểm tra.";
+                case "invalid_photo": return "Ảnh phải là JPG, PNG hoặc WebP, tối đa 4 MB.";
+                case "photo_not_found": return "Không tìm thấy ảnh trong thư mục của hồ sơ.";
+                default: return "Chưa xác nhận được thao tác với ảnh. Vui lòng thử lại.";
+            }
+        }
+
+        function photoRequest(action, context, fields = {}) {
+            return requestData(action, {rowIndex: context.rowIndex, customerKey: context.customerKey, ...fields});
+        }
+
+        async function loadCustomerPhotos(context, clearStatus = true) {
+            try {
+                const result = await photoRequest("listCustomerPhotos", context);
+                if (photoContext !== context) return false;
+                if (result?.status !== "success") {
+                    photoStatus(photoMessage(result?.status));
+                    return false;
+                }
+                for (const category of ["before", "after"]) {
+                    const list = document.getElementById("customer-photos-" + category);
+                    list.replaceChildren();
+                    for (const file of result.photos[category]) {
+                        const li = document.createElement("li");
+                        const button = document.createElement("button");
+                        button.type = "button";
+                        button.className = "block max-w-full truncate text-left text-sm font-medium text-[#156035] hover:underline";
+                        button.textContent = file.name;
+                        button.title = file.name;
+                        button.addEventListener("click", () => viewCustomerPhoto(context, category, file));
+                        li.append(button);
+                        list.append(li);
+                    }
+                    if (!list.children.length) {
+                        const empty = document.createElement("li");
+                        empty.className = "text-xs text-[#4A6354]";
+                        empty.textContent = "Chưa có ảnh.";
+                        list.append(empty);
+                    }
+                }
+                if (clearStatus) photoStatus("");
+                return true;
+            } catch {
+                if (photoContext === context) photoStatus(photoMessage());
+                return false;
+            }
+        }
+
+        function photoBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.addEventListener("error", reject);
+                reader.addEventListener("load", () => resolve(String(reader.result).split(",", 2)[1]));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadCustomerPhotos(input, category) {
+            const context = photoContext;
+            if (!context || context.busy) return;
+            const files = [...input.files];
+            input.value = "";
+            if (!files.length) return;
+            context.busy = true;
+            const inputs = [...document.querySelectorAll("#customer-photo-section input[type=file]")];
+            inputs.forEach(control => { control.disabled = true; });
+            let uploaded = 0;
+            let status = "";
+            try {
+                for (const file of files) {
+                    if (photoContext !== context) return;
+                    if (!PHOTO_TYPES.includes(file.type) || file.size > PHOTO_LIMIT || file.size === 0) {
+                        status = "invalid_photo";
+                        continue;
+                    }
+                    photoStatus(`Đang tải ${uploaded + 1}/${files.length} ảnh…`);
+                    const base64 = await photoBase64(file);
+                    if (photoContext !== context) return;
+                    const result = await photoRequest("uploadCustomerPhoto", context, {
+                        category, base64, mimeType: file.type, name: file.name, uploadId: crypto.randomUUID()
+                    });
+                    if (photoContext !== context) return;
+                    if (result?.status !== "success") {
+                        status = result?.status || "error";
+                        break;
+                    }
+                    uploaded++;
+                }
+            } catch {
+                status = "error";
+            } finally {
+                context.busy = false;
+                if (photoContext === context) {
+                    inputs.forEach(control => { control.disabled = false; });
+                    const loaded = !uploaded || await loadCustomerPhotos(context, false);
+                    if (photoContext === context && loaded) {
+                        photoStatus(status ? (uploaded ? `Đã tải ${uploaded} ảnh. ` : "") + photoMessage(status) : `Đã tải ${uploaded} ảnh.`);
+                    }
+                }
+            }
+        }
+
+        let photoPreviewRequest = 0;
+        function closeCustomerPhotoPreview() {
+            ++photoPreviewRequest;
+            document.getElementById("customer-photo-preview").classList.add("hidden");
+            document.getElementById("customer-photo-image").removeAttribute("src");
+        }
+
+        async function viewCustomerPhoto(context, category, file) {
+            const version = ++photoPreviewRequest;
+            photoStatus("Đang mở ảnh…");
+            try {
+                const result = await photoRequest("viewCustomerPhoto", context, {category, fileId: file.id});
+                if (photoContext !== context || version !== photoPreviewRequest) return;
+                if (result?.status !== "success" || !PHOTO_TYPES.includes(result.mimeType)) {
+                    photoStatus(photoMessage(result?.status));
+                    return;
+                }
+                const image = document.getElementById("customer-photo-image");
+                image.alt = file.name;
+                image.src = `data:${result.mimeType};base64,${result.base64}`;
+                const preview = document.getElementById("customer-photo-preview");
+                preview.classList.remove("hidden");
+                preview.scrollIntoView({block: "nearest"});
+                photoStatus("");
+            } catch {
+                if (photoContext === context && version === photoPreviewRequest) photoStatus(photoMessage());
+            }
+        }
+
         function openCustomerModal(customerId) {
             const modal = document.getElementById("customer-modal");
             const isAdmin = isAdminRole();
@@ -1633,6 +1825,7 @@
                 document.getElementById("field-hoTenThanNhan").value = c.hoTenThanNhan || "";
                 document.getElementById("field-sdt").value = c.sdt || "";
                 document.getElementById("field-email").value = c.email || "";
+                document.getElementById("field-diaChi").value = c.diaChi || "";
                 document.getElementById("field-nguonDangKy").value = c.nguonDangKy || "";
                 document.getElementById("field-nhanVien").value = c.nhanVien || "";
                 document.getElementById("field-ngayTuVan").value = c.ngayTuVan || "";
@@ -1658,6 +1851,7 @@
                 document.getElementById("field-hoTenThanNhan").value = "";
                 document.getElementById("field-sdt").value = "";
                 document.getElementById("field-email").value = "";
+                document.getElementById("field-diaChi").value = "";
                 document.getElementById("field-nguonDangKy").value = "";
                 document.getElementById("field-nhanVien").value = isAdmin ? "" : state.currentUser.username;
                 document.getElementById("field-ngayTuVan").value = "";
@@ -1684,6 +1878,7 @@
 
             updateModalLivePreview();
             modal.classList.remove("hidden");
+            setPhotoContext(customerId);
         }
 
         document.addEventListener("keydown", function(event) {
@@ -1694,6 +1889,8 @@
         });
 
         function closeCustomerModal() {
+            photoContext = null;
+            closeCustomerPhotoPreview();
             document.getElementById("customer-modal").classList.add("hidden");
         }
 
@@ -1740,6 +1937,7 @@
                 hoTenThanNhan: document.getElementById("field-hoTenThanNhan").value.trim(),
                 sdt: document.getElementById("field-sdt").value.trim(),
                 email: document.getElementById("field-email").value.trim(),
+                diaChi: document.getElementById("field-diaChi").value.trim(),
                 nguonDangKy: document.getElementById("field-nguonDangKy").value.trim(),
                 gioTuVan: document.getElementById("field-gioTuVan").value,
                 ngayTuVan: document.getElementById("field-ngayTuVan").value,
@@ -1791,9 +1989,19 @@
                     rowIndex: customer.rowIndex,
                     revision: customer.revision,
                     requestId,
+                    address: customer.diaChi,
                     data: CUSTOMER_COLUMNS.map(field => field === "phanBoNoiBo" ? "" : customer[field])
                 });
                 if (!result) return null;
+                if (["address_setup_required", "address_readonly", "invalid_address"].includes(result.status)) {
+                    const messages = {
+                        address_setup_required: "Chưa cài đặt cột Địa chỉ. Hãy chạy caiDatLuuAnhCRM.",
+                        address_readonly: "Ô Địa chỉ hiện có công thức. Hãy kiểm tra cột AG.",
+                        invalid_address: "Địa chỉ được nhập tối đa 1.000 ký tự."
+                    };
+                    showToast(messages[result.status], "error");
+                    return null;
+                }
                 if (result.status === "conflict" || result.status === "forbidden") {
                     showToast("Dòng dữ liệu đã thay đổi. Vui lòng mở lại hồ sơ để kiểm tra trước khi lưu.", "error");
                     await loadDataFromSheets();
