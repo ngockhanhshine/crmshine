@@ -146,6 +146,21 @@
                         class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">
                         <span id="staff-nav-label">Quản lý nhân viên</span>
                     </button>
+                    <div class="relative">
+                        <button type="button" id="notification-button" onclick="toggleNotifications()" aria-label="Thông báo"
+                            aria-expanded="false" aria-controls="notification-panel"
+                            class="flex items-center gap-1 rounded border border-[#B7D89C] bg-white px-2.5 py-1.5 text-xs font-semibold text-[#156035]">
+                            <span aria-hidden="true">🔔</span><span>Thông báo</span>
+                            <span id="notification-count" class="hidden rounded-full bg-red-700 px-1.5 text-white" aria-live="polite"></span>
+                        </button>
+                        <section id="notification-panel" class="hidden absolute right-0 z-50 mt-2 w-72 max-w-[85vw] rounded-lg border border-[#D1DFCE] bg-white shadow-lg">
+                            <div class="flex items-center justify-between border-b border-[#D1DFCE] px-3 py-2">
+                                <h2 class="text-sm font-bold text-[#132A1C]">Thông báo</h2>
+                                <button type="button" onclick="markNotificationsRead()" class="text-xs font-semibold text-[#156035]">Đánh dấu đã đọc</button>
+                            </div>
+                            <ul id="notification-list" class="max-h-80 overflow-auto"></ul>
+                        </section>
+                    </div>
                     <button type="button" onclick="handleLogout()"
                         class="text-xs font-semibold px-3 py-1.5 border border-[#D1DFCE] bg-[#F6F9F5] hover:bg-red-50 hover:border-red-300 hover:text-red-700 text-[#132A1C] rounded transition-colors">
                         Đăng xuất
@@ -597,6 +612,9 @@
             });
 
             window.setInterval(syncVisiblePage, AUTO_SYNC_INTERVAL);
+            window.setInterval(pollNotifications, AUTO_SYNC_INTERVAL);
+            document.addEventListener("visibilitychange", pollNotifications);
+            document.addEventListener("click", enableNotificationSound, {once: true});
             window.setInterval(sendStaffPresence, 45000);
             window.addEventListener("focus", sendStaffPresence);
             window.addEventListener("focus", syncVisiblePage);
@@ -613,6 +631,8 @@
                 state.users = session.staff;
                 restoreDataSession();
                 enterMainApp();
+                renderNotifications();
+                void pollNotifications();
                 void sendStaffPresence();
                 await Promise.all([loadDataFromSheets(), refreshPaymentBadge(), loadStaffManagement(true)]);
                 if (state.currentUser) refreshDashboardAndTable();
@@ -716,6 +736,173 @@
             return result;
         }
 
+        const notificationAudio = new Audio("./reng.mp3");
+        let notificationAudioAllowed = false;
+        let notifications = [];
+        let notificationRequest = 0;
+        let notificationNavigation = 0;
+        let notificationFetching = false;
+        let showLoginReminders = false;
+
+        // Cấp quyền phát âm trong thao tác người dùng, trước khi chờ phản hồi mạng.
+        function enableNotificationSound() {
+            if (notificationAudioAllowed) return;
+            notificationAudio.muted = true;
+            notificationAudio.play().then(() => {
+                notificationAudio.pause();
+                notificationAudio.currentTime = 0;
+                notificationAudio.muted = false;
+                notificationAudioAllowed = true;
+            }).catch(() => { notificationAudio.muted = false; });
+        }
+
+        function renderNotifications() {
+            const unread = notifications.filter(item => !item.read).length;
+            const count = document.getElementById("notification-count");
+            count.textContent = unread > 99 ? "99+" : String(unread);
+            count.classList.toggle("hidden", !unread);
+            document.getElementById("notification-list").innerHTML = notifications.length
+                ? notifications.map((item, index) => `<li class="border-b border-[#D1DFCE]">
+                    <button type="button" onclick="openNotification(${index})" class="block w-full px-3 py-2 text-left text-sm hover:bg-[#F6F9F5] ${item.read ? "" : "bg-[#ECF5E3]"}">
+                        <span class="block font-semibold text-[#132A1C]">${escapeHtml(item.title)}</span>
+                        <span class="block text-xs text-[#4A6354]">${escapeHtml(item.detail)}</span>
+                    </button>
+                  </li>`).join("")
+                : '<li class="p-3 text-sm text-[#4A6354]">Chưa có thông báo.</li>';
+        }
+
+        function toggleNotifications() {
+            enableNotificationSound();
+            const panel = document.getElementById("notification-panel");
+            const open = panel.classList.toggle("hidden") === false;
+            document.getElementById("notification-button").setAttribute("aria-expanded", String(open));
+        }
+
+        function markNotificationsRead() {
+            notifications.forEach(item => { item.read = true; });
+            renderNotifications();
+        }
+
+        async function openNotification(index) {
+            const item = notifications[index];
+            if (!item?.target || !state.currentUser) return;
+            const {page, key, id} = item.target;
+            const navigation = ++notificationNavigation;
+            item.read = true;
+            document.getElementById("notification-panel").classList.add("hidden");
+            document.getElementById("notification-button").setAttribute("aria-expanded", "false");
+            renderNotifications();
+
+            if (page === "payments") {
+                if (!isAdminRole()) return;
+                await showPaymentPage(true);
+                if (navigation !== notificationNavigation) return;
+                const button = [...document.querySelectorAll("#payment-request-list button[data-id]")]
+                    .find(element => element.dataset.id === id);
+                button?.focus();
+                return;
+            }
+
+            await showPaymentPage(false, false);
+            if (navigation !== notificationNavigation) return;
+            if (page === "customer") {
+                if (key && await loadDataFromSheets() && navigation === notificationNavigation) {
+                    const customer = state.customers.find(row => row.customerKey === key);
+                    if (customer) {
+                        refreshDashboardAndTable();
+                        openCustomerModal(customer.id);
+                        return;
+                    }
+                }
+                if (navigation === notificationNavigation) showToast("Không mở được hồ sơ. Hãy kiểm tra quyền truy cập hoặc thử lại.", "info");
+                return;
+            }
+
+            clearKpiFilter();
+            setConsultationDateFilter("");
+            document.getElementById("search-input").value = "";
+            selectTab(page === "unassigned" ? "UNASSIGNED" : "NEED_SCHEDULE");
+            if (await loadDataFromSheets(true) && navigation === notificationNavigation) refreshDashboardAndTable();
+        }
+
+        function resetNotifications() {
+            ++notificationRequest;
+            ++notificationNavigation;
+            notificationFetching = false;
+            showLoginReminders = false;
+            notifications = [];
+            notificationAudio.pause();
+            document.getElementById("notification-panel").classList.add("hidden");
+            document.getElementById("notification-button").setAttribute("aria-expanded", "false");
+            renderNotifications();
+        }
+
+        function notificationBatch(result, admin, previous, login) {
+            const items = [];
+            const assigned = new Set(previous?.assigned || []);
+            const seen = new Set(previous?.seen || []);
+            const current = result.customers.map(customer => customer.id);
+            const add = (key, title, detail, target) => {
+                if (seen.has(key)) return;
+                seen.add(key);
+                items.push({title, detail, target, read: false});
+            };
+
+            if (admin) {
+                for (const customer of result.customers) {
+                    add("unassigned:" + customer.id, "Khách cần phân bổ", customer.name, {page: "unassigned"});
+                }
+            } else {
+                for (const customer of result.customers) {
+                    if (previous && !assigned.has(customer.id)) {
+                        items.push({title: "Bạn được phân bổ khách mới", detail: customer.name, target: {page: "needs-schedule"}, read: false});
+                    }
+                    if (login && customer.status === "Lịch đã hẹn" && customer.date === result.today) {
+                        items.push({title: "Lịch tư vấn hôm nay", detail: `${customer.time} · ${customer.name}`, target: {page: "customer", key: customer.id}, read: false});
+                    }
+                    if (login && customer.status === "Cần hẹn lịch" &&
+                        (customer.date || customer.registered) === result.today) {
+                        items.push({title: "Cần hẹn lịch hôm nay", detail: customer.name, target: {page: "customer", key: customer.id}, read: false});
+                    }
+                }
+            }
+
+            for (const payment of result.payments) {
+                add("payment:" + payment.id, admin ? "Khoản thu cần duyệt" : "Khoản thu đã được duyệt", payment.name,
+                    admin ? {page: "payments", id: payment.id} : {page: "customer", key: payment.customerKey});
+            }
+            return {items, next: {assigned: current, seen: [...seen].slice(-3000)}};
+        }
+
+        async function pollNotifications() {
+            if (document.hidden || notificationFetching || !state.currentUser || !state.dataSessionToken) return;
+            notificationFetching = true;
+            const request = ++notificationRequest;
+            const user = state.currentUser;
+            try {
+                const result = await requestData("getNotifications");
+                if (request !== notificationRequest || state.currentUser !== user || result?.status !== "success") return;
+                const admin = isAdminRole();
+                const storageKey = "shine_crm_notifications_" + (admin ? "admin:" : "staff:") + user.username.toLowerCase();
+                let previous;
+                try { previous = JSON.parse(localStorage.getItem(storageKey)); } catch {}
+                const {items, next} = notificationBatch(result, admin, previous, showLoginReminders);
+                showLoginReminders = false;
+                try { localStorage.setItem(storageKey, JSON.stringify(next)); } catch {}
+                if (!items.length) return;
+                notifications = [...items, ...notifications].slice(0, 200);
+                renderNotifications();
+                if (notificationAudioAllowed) {
+                    notificationAudio.currentTime = 0;
+                    notificationAudio.play().catch(() => {});
+                }
+            } catch {
+                // Kỳ đồng bộ tiếp theo sẽ thử lại.
+            } finally {
+                if (request === notificationRequest) notificationFetching = false;
+            }
+        }
+
         async function syncVisiblePage() {
             if (document.hidden || !state.currentUser || !state.dataSessionToken ||
                 autoSyncInProgress || Date.now() - lastAutoSync < 1000 ||
@@ -761,8 +948,8 @@
             }
         }
 
-        function parseCustomerRow({ rowIndex, revision, data }) {
-            const customer = { id: `row_${rowIndex}`, rowIndex, revision };
+        function parseCustomerRow({ rowIndex, revision, data, customerKey }) {
+            const customer = { id: `row_${rowIndex}`, rowIndex, revision, customerKey };
             CUSTOMER_COLUMNS.forEach((field, col) => {
                 const value = data[col] ?? "";
                 if (CUSTOMER_AMOUNT_COLUMNS.includes(col)) {
@@ -906,11 +1093,14 @@
             enterMainApp();
             showToast(`Xin chào ${state.currentUser.username} (${state.currentUser.role})`, "success");
 
+            resetNotifications();
+            showLoginReminders = !isAdminRole();
             const loggedInUser = state.currentUser;
             await startDataSession(username, password);
             if (state.currentUser !== loggedInUser) return;
             if (CONFIG.DATA_SCRIPT_URL && !state.dataSessionToken) return;
             void sendStaffPresence();
+            void pollNotifications();
             await Promise.all([loadDataFromSheets(), refreshPaymentBadge(), loadStaffManagement(true)]);
             if (state.currentUser === loggedInUser) refreshDashboardAndTable();
         }
@@ -924,6 +1114,7 @@
         function clearSession() {
             localStorage.removeItem(SESSION_STORAGE_KEY);
             localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
+            resetNotifications();
             state.currentUser = null;
             state.dataSessionToken = "";
             state.customers = [];
