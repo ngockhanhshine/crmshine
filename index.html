@@ -550,12 +550,19 @@
                 </div>
 
                 <section id="customer-photo-section" class="mt-5 rounded-md border border-[#D1DFCE] bg-[#F6F9F5] p-4">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid gap-4 sm:grid-cols-3">
                         <div>
                             <label for="customer-photo-before" class="block text-sm font-semibold text-[#132A1C]">Ảnh trước tập và phiếu khám</label>
                             <input id="customer-photo-before" type="file" multiple accept="image/jpeg,image/png,image/webp"
                                 onchange="uploadCustomerPhotos(this, 'before')" class="my-2 block max-w-full text-xs text-[#4A6354]">
                             <ul id="customer-photos-before" class="grid grid-cols-2 gap-2 lg:grid-cols-3"></ul>
+                        </div>
+                        <div>
+                            <label for="customer-photo-report" class="block text-sm font-semibold text-[#132A1C]">PDF kết quả kiểm tra</label>
+                            <input id="customer-photo-report" type="file" multiple accept=".pdf,application/pdf"
+                                onchange="uploadCustomerPhotos(this, 'report')" class="my-2 block max-w-full text-xs text-[#4A6354]">
+                            <p class="text-xs text-[#4A6354]">Tối đa 10 MB mỗi file PDF.</p>
+                            <ul id="customer-report-links" class="mt-2 space-y-2" aria-live="polite"></ul>
                         </div>
                         <div>
                             <label for="customer-photo-after" class="block text-sm font-semibold text-[#132A1C]">Ảnh mắt sau tập</label>
@@ -1638,18 +1645,20 @@
             photoContext = customer ? {rowIndex: customer.rowIndex, customerKey: customer.customerKey, busy: false} : null;
             document.getElementById("customer-photo-preview").classList.add("hidden");
             document.getElementById("customer-photo-image").removeAttribute("src");
-            for (const category of ["before", "after"]) {
+            for (const category of ["before", "report", "after"]) {
                 const input = document.getElementById("customer-photo-" + category);
                 input.value = "";
                 input.disabled = !photoContext;
-                document.getElementById("customer-photos-" + category).replaceChildren();
+                if (category !== "report") document.getElementById("customer-photos-" + category).replaceChildren();
             }
+            document.getElementById("customer-report-links").replaceChildren();
             if (!photoContext) {
-                photoStatus("Lưu hồ sơ trước khi tải ảnh.");
+                photoStatus("Lưu hồ sơ trước khi tải ảnh hoặc PDF.");
                 return;
             }
             photoStatus("Đang tải danh sách ảnh…");
             void loadCustomerPhotos(photoContext);
+            void loadCustomerReports(photoContext);
         }
 
         function photoMessage(status) {
@@ -1658,6 +1667,9 @@
                 case "forbidden": return "Anh không có quyền truy cập ảnh của khách này.";
                 case "conflict": return "Hồ sơ đã thay đổi. Hãy đóng và mở lại hồ sơ.";
                 case "photo_binding_conflict": return "Thư mục ảnh không còn khớp với hồ sơ. Hãy báo Admin kiểm tra.";
+                case "report_column_conflict": return "Cột AH đang có dữ liệu khác. Hãy báo Admin kiểm tra.";
+                case "invalid_report": return "Chọn file PDF tối đa 10 MB.";
+                case "report_folder_unavailable": return "Không thể mở thư mục CRM_phieukiemtra. Hãy báo Admin kiểm tra tên và quyền chia sẻ.";
                 case "invalid_photo": return "Ảnh phải là JPG, PNG hoặc WebP, tối đa 4 MB.";
                 case "photo_not_found": return "Không tìm thấy ảnh trong thư mục của hồ sơ.";
                 default: return "Chưa xác nhận được thao tác với ảnh. Vui lòng thử lại.";
@@ -1666,6 +1678,39 @@
 
         function photoRequest(action, context, fields = {}) {
             return requestData(action, {rowIndex: context.rowIndex, customerKey: context.customerKey, ...fields});
+        }
+
+        async function loadCustomerReports(context) {
+            context.reportRequest = (context.reportRequest || 0) + 1;
+            const version = context.reportRequest;
+            const list = document.getElementById("customer-report-links");
+            try {
+                const result = await photoRequest("listCustomerReports", context);
+                if (photoContext !== context || version !== context.reportRequest) return;
+                if (result?.status !== "success") throw new Error(result?.status);
+                list.replaceChildren();
+                for (const file of result.reports) {
+                    if (!/^[A-Za-z0-9_-]{10,100}$/.test(file.id)) continue;
+                    const row = document.createElement("li");
+                    const link = document.createElement("a");
+                    link.href = "https://drive.google.com/file/d/" + file.id + "/view";
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.className = "block text-xs font-semibold text-[#156035] underline";
+                    link.textContent = "Xem phiếu kiểm tra";
+                    const name = document.createElement("span");
+                    name.className = "block break-all text-xs text-[#4A6354]";
+                    name.textContent = file.name;
+                    row.append(link, name);
+                    list.append(row);
+                }
+            } catch {
+                if (photoContext !== context || version !== context.reportRequest) return;
+                const message = document.createElement("li");
+                message.className = "text-xs text-[#4A6354]";
+                message.textContent = "Chưa tải được danh sách phiếu kiểm tra.";
+                list.replaceChildren(message);
+            }
         }
 
         async function loadCustomerPhotos(context, clearStatus = true) {
@@ -1768,6 +1813,8 @@
             const files = [...input.files];
             input.value = "";
             if (!files.length) return;
+            const report = category === "report";
+            const label = report ? "file PDF" : "ảnh";
             context.busy = true;
             const inputs = [...document.querySelectorAll("#customer-photo-section input[type=file]")];
             inputs.forEach(control => { control.disabled = true; });
@@ -1776,14 +1823,17 @@
             try {
                 for (const file of files) {
                     if (photoContext !== context) return;
-                    if (!PHOTO_TYPES.includes(file.type) || file.size > PHOTO_LIMIT || file.size === 0) {
-                        status = "invalid_photo";
+                    const valid = report
+                        ? /\.pdf$/i.test(file.name) && file.size <= 10 * 1024 * 1024
+                        : PHOTO_TYPES.includes(file.type) && file.size <= PHOTO_LIMIT;
+                    if (!valid || file.size === 0) {
+                        status = report ? "invalid_report" : "invalid_photo";
                         continue;
                     }
-                    photoStatus(`Đang tải ${uploaded + 1}/${files.length} ảnh…`);
+                    photoStatus(`Đang tải ${uploaded + 1}/${files.length} ${label}…`);
                     const base64 = await photoBase64(file);
                     if (photoContext !== context) return;
-                    const result = await photoRequest("uploadCustomerPhoto", context, {
+                    const result = await photoRequest(report ? "uploadCustomerReport" : "uploadCustomerPhoto", context, {
                         category, base64, mimeType: file.type, name: file.name, uploadId: crypto.randomUUID()
                     });
                     if (photoContext !== context) return;
@@ -1799,9 +1849,10 @@
                 context.busy = false;
                 if (photoContext === context) {
                     inputs.forEach(control => { control.disabled = false; });
-                    const loaded = !uploaded || await loadCustomerPhotos(context, false);
+                    if (report && uploaded) void loadCustomerReports(context);
+                    const loaded = report || !uploaded || await loadCustomerPhotos(context, false);
                     if (photoContext === context && loaded) {
-                        photoStatus(status ? (uploaded ? `Đã tải ${uploaded} ảnh. ` : "") + photoMessage(status) : `Đã tải ${uploaded} ảnh.`);
+                        photoStatus(status ? (uploaded ? `Đã tải ${uploaded} ${label}. ` : "") + (report && status === "error" ? "Chưa xác nhận được việc tải PDF." : photoMessage(status)) : `Đã tải ${uploaded} ${label}.`);
                     }
                 }
             }
