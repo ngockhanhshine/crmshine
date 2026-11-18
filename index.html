@@ -279,7 +279,7 @@
                 <!-- Thanh Tìm Kiếm & Thêm Mới -->
                 <div class="p-4 border-b border-[#D1DFCE] flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
                     <div class="relative flex-1 max-w-md">
-                        <input type="text" id="search-input" oninput="renderTable()" placeholder="Tìm theo tên khách, thân nhân, SĐT, nguồn..."
+                        <input type="text" id="search-input" oninput="renderTable()" placeholder="Tìm theo tên khách, thân nhân, SĐT, nguồn, tình trạng mắt hoặc tag..."
                             class="w-full pl-9 pr-3 py-2 text-xs sm:text-sm border border-[#D1DFCE] rounded bg-[#F6F9F5] text-[#132A1C]">
                         <svg class="w-4 h-4 text-[#4A6354] absolute left-3 top-2.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
@@ -503,6 +503,8 @@
                             <textarea id="field-tinhTrangMat" rows="9" maxlength="50000"
                                 placeholder="Ghi tình trạng mắt, kết quả kiểm tra, ghi chú tư vấn..."
                                 class="min-h-[12rem] w-full flex-1 resize-y rounded border border-[#D1DFCE] bg-white px-3 py-2 text-xs leading-relaxed text-[#132A1C]"></textarea>
+                            <div id="eye-tag-line" hidden class="break-words text-xs text-[#4A6354]"></div>
+                            <div id="eye-tag-options" role="group" aria-label="Tag tình trạng mắt" class="flex flex-wrap gap-1"></div>
                         </div>
                     </div>
 
@@ -1499,7 +1501,8 @@
                     (c.hoTenKhach || "").toLowerCase().includes(keyword) ||
                     (c.hoTenThanNhan || "").toLowerCase().includes(keyword) ||
                     (c.sdt || "").toLowerCase().includes(keyword) ||
-                    (c.nguonDangKy || "").toLowerCase().includes(keyword)
+                    (c.nguonDangKy || "").toLowerCase().includes(keyword) ||
+                    (c.tinhTrangMat || "").toLowerCase().includes(keyword)
                 );
             }
 
@@ -1833,6 +1836,69 @@
             }
         }
 
+        const EYE_NOTE_TAGS = ["nhuocthi", "lacngoai", "lactrong", "lacdung", "daygai", "ducttt", "bdkx"];
+        const EYE_NOTE_LIMIT = 50000;
+        let eyeNoteTags = new Set();
+
+        function parseEyeNote(value) {
+            const text = value || "";
+            const lineBreak = text.lastIndexOf("\n");
+            const lastLine = text.slice(lineBreak + 1);
+            if (!lastLine.startsWith("Tags: ")) return { note: text, tags: [] };
+            const tags = lastLine.slice(6).split(" ").map(tag => tag.startsWith("#") ? tag.slice(1) : "");
+            if (!tags.every(tag => EYE_NOTE_TAGS.includes(tag))) return { note: text, tags: [] };
+            return { note: lineBreak < 0 ? "" : text.slice(0, lineBreak), tags };
+        }
+
+        function eyeTagLine(tags) {
+            const selected = EYE_NOTE_TAGS.filter(tag => tags.has(tag));
+            return selected.length ? "Tags: " + selected.map(tag => "#" + tag).join(" ") : "";
+        }
+
+        function serializeEyeNote(note, tags) {
+            const line = eyeTagLine(tags);
+            return line ? [note, line].filter(Boolean).join("\n") : note;
+        }
+
+        function setEyeNote(value) {
+            const { note, tags } = parseEyeNote(value);
+            document.getElementById("field-tinhTrangMat").value = note;
+            eyeNoteTags = new Set(tags);
+            renderEyeTags();
+        }
+
+        function renderEyeTags() {
+            const field = document.getElementById("field-tinhTrangMat");
+            const line = document.getElementById("eye-tag-line");
+            const options = document.getElementById("eye-tag-options");
+            line.textContent = eyeTagLine(eyeNoteTags);
+            line.hidden = !line.textContent;
+            field.maxLength = EYE_NOTE_LIMIT - (line.hidden ? 0 : line.textContent.length + 1);
+            options.replaceChildren();
+            EYE_NOTE_TAGS.forEach(tag => {
+                const selected = eyeNoteTags.has(tag);
+                const button = document.createElement("button");
+                button.type = "button";
+                button.textContent = "#" + tag;
+                button.setAttribute("aria-pressed", String(selected));
+                button.className = "rounded-full border px-2 py-0.5 text-xs cursor-pointer " +
+                    (selected ? "border-[#145C36] bg-[#145C36] text-white" : "border-[#D1DFCE] bg-white text-[#145C36]");
+                button.onclick = () => {
+                    const next = new Set(eyeNoteTags);
+                    if (selected) next.delete(tag);
+                    else next.add(tag);
+                    if (!selected && serializeEyeNote(field.value, next).length > EYE_NOTE_LIMIT) {
+                        alert("Ghi chú đã gần đầy. Anh/chị hãy rút ngắn ghi chú để thêm tag.");
+                        return;
+                    }
+                    eyeNoteTags = next;
+                    renderEyeTags();
+                    options.children[EYE_NOTE_TAGS.indexOf(tag)].focus();
+                };
+                options.appendChild(button);
+            });
+        }
+
         function openCustomerModal(customerId) {
             const modal = document.getElementById("customer-modal");
             const isAdmin = isAdminRole();
@@ -1878,7 +1944,7 @@
                 document.getElementById("field-nhanVien").value = c.nhanVien || "";
                 document.getElementById("field-ngayTuVan").value = c.ngayTuVan || "";
                 document.getElementById("field-gioTuVan").value = c.gioTuVan || "";
-                document.getElementById("field-tinhTrangMat").value = c.tinhTrangMat || "";
+                setEyeNote(c.tinhTrangMat);
                 document.getElementById("field-khongQuanTam").checked = (c.tinhTrang === "Không quan tâm");
                 document.getElementById("field-tongPhi").value = c.tongPhi ? formatMoneyDigits(String(c.tongPhi)) : "";
 
@@ -1904,7 +1970,7 @@
                 document.getElementById("field-nhanVien").value = isAdmin ? "" : state.currentUser.username;
                 document.getElementById("field-ngayTuVan").value = "";
                 document.getElementById("field-gioTuVan").value = "";
-                document.getElementById("field-tinhTrangMat").value = "";
+                setEyeNote("");
                 document.getElementById("field-khongQuanTam").checked = false;
                 document.getElementById("field-tongPhi").value = "";
 
@@ -1990,7 +2056,7 @@
                 gioTuVan: document.getElementById("field-gioTuVan").value,
                 ngayTuVan: document.getElementById("field-ngayTuVan").value,
                 nhanVien: document.getElementById("field-nhanVien").value,
-                tinhTrangMat: document.getElementById("field-tinhTrangMat").value,
+                tinhTrangMat: serializeEyeNote(document.getElementById("field-tinhTrangMat").value, eyeNoteTags),
                 tinhTrang: isNotInterested ? "Không quan tâm" : "",
                 tongPhi: tongPhi,
                 tongDaNop: tongDaNop,
