@@ -58,7 +58,7 @@
     <!-- =====================================================================
          1. THÔNG BÁO TOAST PHẲNG (THAY THẾ HOÀN TOÀN ALERT/CONFIRM)
     ====================================================================== -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-2 px-4 pointer-events-none"></div>
 
     <!-- =====================================================================
          2. MÀN HÌNH ĐĂNG NHẬP (LOGIN VIEW - TONE XANH LÁ & XANH LÁ MẠ SHINE)
@@ -645,7 +645,6 @@
             window.addEventListener("storage", function(e) {
                 if (e.key === SESSION_STORAGE_KEY && !e.newValue) {
                     clearSession();
-                    showToast("Phiên đăng nhập đã kết thúc ở tab khác.", "info");
                 } else if (state.currentUser && e.key === notificationStorageKey()) {
                     restoreNotifications();
                 }
@@ -759,18 +758,13 @@
             }
             const token = state.dataSessionToken;
             if (!token) {
-                showToast("Hệ thống cần một phiên mới. Bạn vui lòng đăng xuất rồi đăng nhập lại.", "info");
+                if (state.currentUser) clearSession();
                 return null;
             }
             const result = await requestDataScript({ action, token, ...fields });
             if (state.dataSessionToken !== token) return null;
             if (result?.status === "unauthorized") {
-                state.dataSessionToken = "";
-                updatePaymentBadge(0);
-                state.customers = [];
-                localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
-                refreshDashboardAndTable();
-                showToast("Phiên kết nối với Hệ thống đã hết hạn. Bạn vui lòng đăng xuất rồi đăng nhập lại.", "info");
+                clearSession();
                 return null;
             }
             return result;
@@ -1198,6 +1192,9 @@
         }
 
         function clearSession() {
+            document.getElementById("toast-container").replaceChildren();
+            ++customerReadVersion;
+            ++paymentReadVersion;
             localStorage.removeItem(SESSION_STORAGE_KEY);
             localStorage.removeItem(DATA_SESSION_STORAGE_KEY);
             resetNotifications();
@@ -2470,6 +2467,7 @@
         }
 
         function showToast(message, type = "info") {
+            if (!state.currentUser) return;
             const container = document.getElementById("toast-container");
             const toast = document.createElement("div");
 
@@ -2479,7 +2477,7 @@
                 info: "bg-[#132A1C] text-white border-[#132A1C]"
             };
 
-            toast.className = `pointer-events-auto px-4 py-2.5 rounded border text-xs font-semibold flex items-center gap-2 ${styles[type] || styles.info}`;
+            toast.className = `pointer-events-auto max-w-lg text-center px-4 py-2.5 rounded border text-xs font-semibold flex items-center gap-2 ${styles[type] || styles.info}`;
             toast.textContent = message;
             container.appendChild(toast);
 
