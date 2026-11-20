@@ -122,26 +122,25 @@
                     <div class="w-8 h-8 bg-[#156035] text-white rounded flex items-center justify-center font-bold text-base">S</div>
                     <div class="flex items-center gap-2">
                         <span class="font-bold text-[#156035] tracking-tight text-base">SHINE CRM</span>
-                        <span class="hidden sm:inline-block px-2 py-0.5 text-[11px] font-semibold rounded bg-[#ECF5E3] text-[#558B2F] border border-[#B7D89C]">
-                            Khôi phục thị lực
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Right Controls: Tài khoản & Đăng xuất -->
-                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <div class="flex items-center gap-2">
+                        <div class="flex items-center gap-2">
                         <span id="header-user-name" class="text-xs sm:text-sm font-bold text-[#132A1C]">tranngockhanh</span>
                         <span id="header-user-role" class="px-2 py-0.5 text-[11px] font-bold rounded bg-[#ECF5E3] text-[#156035] border border-[#B7D89C]">
                             Admin
                         </span>
                     </div>
+                    </div>
+                </div>
+
+                <!-- Right Controls: Tài khoản & Đăng xuất -->
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+
                     <span class="h-4 w-[1px] bg-[#D1DFCE]"></span>
                     <button type="button" id="payment-nav" onclick="showPaymentPage(document.getElementById('payment-page').classList.contains('hidden'))"
                         class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">
                         <span id="payment-nav-label">Duyệt nộp tiền</span>
                         <span id="payment-nav-count" class="hidden ml-1 text-[11px] font-bold text-red-700" aria-live="polite"></span>
                     </button>
+                    <button type="button" id="shipping-nav" onclick="showShippingPage()" class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">Cần gửi</button>
                     <button type="button" id="staff-nav" onclick="showStaffPage()"
                         class="hidden rounded border border-[#B7D89C] bg-[#ECF5E3] px-3 py-1.5 text-xs font-semibold text-[#156035]">
                         <span id="staff-nav-label">Quản lý nhân viên</span>
@@ -170,6 +169,19 @@
         </header>
 
         <!-- MAIN WORKSPACE -->
+        <main id="shipping-page" class="hidden flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-[#132A1C]">Cần gửi</h2>
+                <button type="button" onclick="showPaymentPage(false)" class="rounded border px-3 py-2 text-xs">Về CRM</button>
+            </div>
+            <p id="shipping-status" role="status" class="mb-3 text-sm text-[#4A6354]"></p>
+            <div class="overflow-x-auto rounded border border-[#D1DFCE] bg-white">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-[#F6F9F5]"><tr><th class="p-3">Họ tên khách</th><th class="p-3">SĐT</th><th class="p-3">Địa chỉ</th><th class="p-3">Mã đơn hàng</th></tr></thead>
+                    <tbody id="shipping-list"></tbody>
+                </table>
+            </div>
+        </main>
         <main id="crm-dashboard" class="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 space-y-5">
 
             <!-- HÀNG 1: BỘ LỌC THỜI GIAN & NHÂN SỰ NGANG HÀNG VỚI 4 THẺ CHỈ SỐ BÁO CÁO NHANH -->
@@ -288,7 +300,7 @@
 
                     <div class="flex items-center gap-2">
                         <span id="table-count-label" class="text-xs text-[#4A6354] font-semibold mr-2">0 khách hàng</span>
-                        <button type="button" onclick="openCustomerModal(null)"
+                        <button type="button" id="add-customer-button" onclick="openCustomerModal(null)"
                             class="px-3.5 py-2 bg-[#156035] hover:bg-[#0F4927] text-white text-xs font-semibold rounded border border-[#156035] flex items-center gap-1.5 transition-colors">
                             <span>+ Thêm khách hàng</span>
                         </button>
@@ -463,6 +475,8 @@
                                 <option value="">-- Chưa phân bổ (Trống) --</option>
                             </select>
                             <p id="staff-lock-note" class="hidden text-[11px] text-[#4A6354] mt-1">Chuyên viên tư vấn không thể chuyển data cho người khác.</p>
+                            <label for="field-coach" class="block text-xs font-semibold text-[#4A6354] mt-3 mb-1">Huấn luyện viên phụ trách</label>
+                            <select id="field-coach" class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white"></select>
                         </div>
                     </div>
 
@@ -544,6 +558,8 @@
                             <div id="installments-container" class="space-y-2">
                                 <!-- Render bằng JS -->
                             </div>
+                            <label for="field-trackingCode" class="block text-xs font-semibold text-[#4A6354] mt-3">Mã vận đơn</label>
+                            <input id="field-trackingCode" type="text" maxlength="200" class="w-full px-2.5 py-1.5 text-xs border border-[#D1DFCE] rounded bg-white">
                         </div>
                     </div>
 
@@ -864,8 +880,12 @@
             document.getElementById("notification-button").setAttribute("aria-expanded", "false");
             renderNotifications();
 
+            if (page === "shipping") {
+                if (canReviewPayments()) await showShippingPage();
+                return;
+            }
             if (page === "payments") {
-                if (!isAdminRole()) return;
+                if (!canReviewPayments()) return;
                 await showPaymentPage(true);
                 if (navigation !== notificationNavigation) return;
                 const button = [...document.querySelectorAll("#payment-request-list button[data-id]")]
@@ -943,6 +963,9 @@
                 add("payment:" + payment.id, admin ? "Khoản thu cần duyệt" : "Khoản thu đã được duyệt", payment.name,
                     admin ? {page: "payments", id: payment.id} : {page: "customer", key: payment.customerKey});
             }
+            for (const customer of result.shipping || []) {
+                add("shipping:" + customer.id, "Có đơn cần gửi", customer.name, {page: "shipping"});
+            }
             return {items, next: {assigned: current, seen: [...seen].slice(-3000)}};
         }
 
@@ -961,7 +984,7 @@
             try {
                 const result = await requestData("getNotifications");
                 if (request !== notificationRequest || state.currentUser !== user || result?.status !== "success") return;
-                const admin = isAdminRole();
+                const admin = canReviewPayments();
                 const previous = readNotificationStore() || notificationTracker;
                 const {items, next} = notificationBatch(result, admin, previous, showLoginReminders);
                 showLoginReminders = false;
@@ -990,7 +1013,11 @@
             autoSyncInProgress = true;
             lastAutoSync = Date.now();
             try {
-                if (isStaffPageVisible()) {
+                if (!document.getElementById("shipping-page").classList.contains("hidden")) {
+                    const changed = await loadDataFromSheets(true);
+                    if (changed && state.currentUser) renderShipping();
+                    await refreshPaymentBadge();
+                } else if (isStaffPageVisible()) {
                     await Promise.all([loadStaffManagement(true), refreshPaymentBadge()]);
                 } else if (!document.getElementById("payment-page").classList.contains("hidden")) {
                     if (!paymentReviewsInProgress) await loadPaymentRequests(true);
@@ -1027,8 +1054,8 @@
             }
         }
 
-        function parseCustomerRow({ rowIndex, revision, data, customerKey, address }) {
-            const customer = { id: `row_${rowIndex}`, rowIndex, revision, customerKey, diaChi: address || "" };
+        function parseCustomerRow({ rowIndex, revision, data, customerKey, address, coach, trackingCode }) {
+            const customer = { id: `row_${rowIndex}`, rowIndex, revision, customerKey, diaChi: address || "", coach: coach || "", trackingCode: trackingCode || "" };
             CUSTOMER_COLUMNS.forEach((field, col) => {
                 const value = data[col] ?? "";
                 if (CUSTOMER_AMOUNT_COLUMNS.includes(col)) {
@@ -1211,6 +1238,7 @@
             updatePaymentBadge(0);
             closeCustomerModal();
             document.getElementById("payment-request-list").replaceChildren();
+            document.getElementById("shipping-list").replaceChildren();
             showLoginView();
         }
 
@@ -1219,8 +1247,87 @@
             document.getElementById("app-view").classList.add("hidden");
         }
 
+        function roleName() { return String(state.currentUser?.role || "").trim().toLowerCase(); }
+        function isCoachRole() { return roleName() === "huấn luyện viên"; }
+        function isAccountantRole() { return roleName() === "kế toán"; }
+        function canReviewPayments() { return isAdminRole() || isAccountantRole(); }
+        function isConsultantRole() { return !!state.currentUser && !isAdminRole() && !isCoachRole() && !isAccountantRole(); }
+
+        function shippingCustomers() {
+            return state.customers.filter(c => !c.trackingCode && classifyCustomer(c).code === "CLOSED" && calcTotalPaid(c) > 0);
+        }
+
+        let shippingSaveInProgress = false;
+        async function showShippingPage() {
+            if (!canReviewPayments()) return;
+            await showPaymentPage(false, false);
+            document.getElementById("crm-dashboard").classList.add("hidden");
+            document.getElementById("shipping-page").classList.remove("hidden");
+            const user = state.currentUser;
+            await loadDataFromSheets();
+            if (state.currentUser === user) renderShipping();
+        }
+
+        function renderShipping() {
+            if (!canReviewPayments() || shippingSaveInProgress) return;
+            const customers = shippingCustomers();
+            document.getElementById("shipping-status").textContent = customers.length
+                ? customers.length + " khách cần gửi hàng" : "Hiện chưa có khách cần gửi hàng.";
+            const list = document.getElementById("shipping-list");
+            const previous = new Map([...list.querySelectorAll("input[data-customer]")].map(input => [input.dataset.customer, input.value]));
+            list.innerHTML = customers.map(c => `<tr class="border-t border-[#D1DFCE]">
+                <td class="p-3"><button type="button" class="text-[#156035] font-semibold" onclick="openCustomerModal('${escapeHtml(c.id)}')">${escapeHtml(c.hoTenKhach || c.hoTenThanNhan)}</button></td>
+                <td class="p-3">${escapeHtml(c.sdt)}</td><td class="p-3">${escapeHtml(c.diaChi)}</td>
+                <td class="p-3">${isAccountantRole()
+                    ? `<form class="flex gap-2" onsubmit="saveShipping(event, '${escapeHtml(c.id)}')">
+                        <input data-customer="${escapeHtml(c.id)}" aria-label="Mã đơn hàng" maxlength="200" required class="min-w-0 rounded border px-2 py-1 text-sm">
+                        <button type="submit" class="rounded bg-[#156035] text-white px-3 py-1 text-xs">Lưu thay đổi</button></form>`
+                    : '<span class="text-[#4A6354]">Chờ Kế toán nhập mã</span>'}</td>
+            </tr>`).join("");
+            list.querySelectorAll("input[data-customer]").forEach(input => { input.value = previous.get(input.dataset.customer) || ""; });
+        }
+
+        async function saveShipping(event, id) {
+            event.preventDefault();
+            if (!isAccountantRole() || shippingSaveInProgress) return;
+            const customer = state.customers.find(c => c.id === id);
+            const form = event.currentTarget;
+            const input = form.querySelector("input");
+            if (!customer || !input.value.trim()) return;
+            const user = state.currentUser;
+            shippingSaveInProgress = true;
+            form.querySelector("button").disabled = true;
+            try {
+                const saved = await pushCustomerToGoogleSheet("updateRow", {...customer, trackingCode: input.value.trim()});
+                if (saved) showToast("Đã lưu mã vận đơn.", "success");
+            } finally {
+                shippingSaveInProgress = false;
+                if (state.currentUser === user) renderShipping();
+            }
+        }
+
+        function applyCustomerPermissions(customer) {
+            const restricted = isCoachRole() || isAccountantRole();
+            document.querySelectorAll("#customer-form input, #customer-form select, #customer-form textarea, #eye-tag-options button").forEach(control => {
+                if (control.type !== "hidden") control.disabled = restricted;
+            });
+            document.getElementById("field-coach").disabled = !isAdminRole();
+            document.getElementById("field-nhanVien").disabled = !isAdminRole();
+            document.getElementById("field-trackingCode").disabled = !isAccountantRole();
+            if (isCoachRole()) {
+                for (let n = 1; n <= 8; n++) {
+                    document.getElementById("field-nopLan" + n).disabled = false;
+                    document.getElementById("field-ngayNopLan" + n).disabled = false;
+                }
+            }
+            for (const category of ["before", "report", "after"]) {
+                document.getElementById("customer-photo-" + category).disabled = !customer ||
+                    isAccountantRole() || (isCoachRole() && category !== "after");
+            }
+        }
+
         function isAdminRole() {
-            return state.currentUser && state.currentUser.role.toLowerCase() === "admin";
+            return state.currentUser && roleName() === "admin";
         }
 
         function enterMainApp() {
@@ -1229,7 +1336,9 @@
 
             const isAdmin = isAdminRole();
             showPaymentPage(false, false);
-            document.getElementById("payment-nav").classList.toggle("hidden", !isAdmin);
+            document.getElementById("payment-nav").classList.toggle("hidden", !canReviewPayments());
+            document.getElementById("shipping-nav").classList.toggle("hidden", !canReviewPayments());
+            document.getElementById("add-customer-button").classList.toggle("hidden", isCoachRole() || isAccountantRole());
             document.getElementById("staff-nav").classList.toggle("hidden", !isAdmin);
             document.getElementById("header-user-name").textContent = state.currentUser.username;
             document.getElementById("header-user-role").textContent = state.currentUser.role;
@@ -1260,7 +1369,7 @@
             filterSelect.innerHTML = `<option value="ALL">Tất cả Team</option>`;
             modalSelect.innerHTML = `<option value="">-- Chưa phân bổ --</option>`;
 
-            state.users.forEach(u => {
+            state.users.filter(u => !["huấn luyện viên", "kế toán"].includes(u.role.trim().toLowerCase())).forEach(u => {
                 filterSelect.innerHTML += `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`;
                 modalSelect.innerHTML += `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} (${escapeHtml(u.role)})</option>`;
             });
@@ -1270,6 +1379,8 @@
          * LẤY DANH SÁCH KHÁCH HÀNG THUỘC PHẠM VI QUYỀN CỦA TÀI KHOẢN HIỆN TẠI
          */
         function getScopedCustomers() {
+            if (isAccountantRole()) return state.customers;
+            if (isCoachRole()) return state.customers.filter(c => (c.coach || "").toLowerCase() === state.currentUser.username.toLowerCase());
             if (!isAdminRole()) {
                 return state.customers.filter(c => (c.nhanVien || "").toLowerCase() === state.currentUser.username.toLowerCase());
             }
@@ -1541,7 +1652,7 @@
                 // Cột Nhân viên: Nếu là Admin và data chưa có nhân viên -> Hiện dropdown giao việc nhanh
                 let staffCellHtml = "";
                 if (isAdmin && (!c.nhanVien || c.nhanVien.trim() === "")) {
-                    const options = state.users.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join("");
+                    const options = state.users.filter(u => !["huấn luyện viên", "kế toán"].includes(u.role.trim().toLowerCase())).map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)}</option>`).join("");
                     staffCellHtml = `
                         <div class="flex items-center gap-1.5" onclick="event.stopPropagation()">
                             <select id="assign-select-${c.id}" class="text-xs border border-[#D1DFCE] rounded px-2 py-1 bg-white text-[#132A1C]">
@@ -1845,7 +1956,7 @@
             } finally {
                 context.busy = false;
                 if (photoContext === context) {
-                    inputs.forEach(control => { control.disabled = false; });
+                    applyCustomerPermissions(state.customers.find(c => c.rowIndex === context.rowIndex));
                     if (report && uploaded) void loadCustomerReports(context);
                     const loaded = report || !uploaded || await loadCustomerPhotos(context, false);
                     if (photoContext === context && loaded) {
@@ -1948,6 +2059,7 @@
         }
 
         function openCustomerModal(customerId) {
+            if (!customerId && (isCoachRole() || isAccountantRole())) return;
             const modal = document.getElementById("customer-modal");
             const isAdmin = isAdminRole();
 
@@ -1970,7 +2082,21 @@
             // Cập nhật danh sách nhân viên trong select của Modal
             const staffSelect = document.getElementById("field-nhanVien");
             staffSelect.innerHTML = `<option value="">-- Chưa phân bổ (Trống) --</option>` +
-                state.users.map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} (${escapeHtml(u.role)})</option>`).join("");
+                state.users.filter(u => !["huấn luyện viên", "kế toán"].includes(u.role.trim().toLowerCase())).map(u => `<option value="${escapeHtml(u.username)}">${escapeHtml(u.username)} (${escapeHtml(u.role)})</option>`).join("");
+
+            const currentCustomer = state.customers.find(c => c.id === customerId);
+            if (currentCustomer?.nhanVien && ![...staffSelect.options].some(option => option.value === currentCustomer.nhanVien)) {
+                staffSelect.add(new Option(currentCustomer.nhanVien, currentCustomer.nhanVien));
+            }
+            const coachSelect = document.getElementById("field-coach");
+            coachSelect.replaceChildren(new Option("-- Chưa phân công --", ""));
+            const coaches = state.users.filter(u => u.role.trim().toLowerCase() === "huấn luyện viên");
+            coaches.forEach(u => coachSelect.add(new Option(u.username, u.username)));
+            if (currentCustomer?.coach && !coaches.some(u => u.username === currentCustomer.coach)) {
+                coachSelect.add(new Option(currentCustomer.coach, currentCustomer.coach));
+            }
+            coachSelect.value = currentCustomer?.coach || "";
+            document.getElementById("field-trackingCode").value = currentCustomer?.trackingCode || "";
 
             if (customerId) {
                 const c = state.customers.find(item => item.id === customerId);
@@ -2041,6 +2167,7 @@
             updateModalLivePreview();
             modal.classList.remove("hidden");
             setPhotoContext(customerId);
+            applyCustomerPermissions(currentCustomer);
         }
 
         document.addEventListener("keydown", function(event) {
@@ -2100,6 +2227,8 @@
                 sdt: document.getElementById("field-sdt").value.trim(),
                 email: document.getElementById("field-email").value.trim(),
                 diaChi: document.getElementById("field-diaChi").value.trim(),
+                coach: document.getElementById("field-coach").value,
+                trackingCode: document.getElementById("field-trackingCode").value.trim(),
                 nguonDangKy: document.getElementById("field-nguonDangKy").value.trim(),
                 gioTuVan: document.getElementById("field-gioTuVan").value,
                 ngayTuVan: document.getElementById("field-ngayTuVan").value,
@@ -2152,9 +2281,19 @@
                     revision: customer.revision,
                     requestId,
                     address: customer.diaChi,
+                    coach: customer.coach,
+                    trackingCode: customer.trackingCode,
+                    previousCoach: state.customers.find(c => c.id === customer.id)?.coach || "",
+                    previousTrackingCode: state.customers.find(c => c.id === customer.id)?.trackingCode || "",
                     data: CUSTOMER_COLUMNS.map(field => field === "phanBoNoiBo" ? "" : customer[field])
                 });
                 if (!result) return null;
+                if (["roles_setup_required", "invalid_coach", "tracking_readonly"].includes(result.status)) {
+                    showToast(result.status === "roles_setup_required" ? "Admin cần chạy caiDatPhanQuyenHLVKeToan trước."
+                        : result.status === "invalid_coach" ? "Danh sách HLV đã thay đổi. Hãy đăng nhập lại để cập nhật."
+                        : "Ô mã vận đơn đang dùng công thức.", "error");
+                    return null;
+                }
                 if (["address_setup_required", "address_readonly", "invalid_address"].includes(result.status)) {
                     const messages = {
                         address_setup_required: "Chưa cài đặt cột Địa chỉ. Hãy chạy caiDatLuuAnhCRM.",
@@ -2188,10 +2327,11 @@
         }
 
         async function showPaymentPage(show, refresh = true) {
-            if (show && !isAdminRole()) return;
+            if (show && !canReviewPayments()) return;
             document.getElementById("crm-dashboard").classList.toggle("hidden", show);
             document.getElementById("payment-page").classList.toggle("hidden", !show);
             document.getElementById("staff-page").classList.add("hidden");
+            document.getElementById("shipping-page").classList.add("hidden");
             document.getElementById("staff-nav-label").textContent = "Quản lý nhân viên";
             document.getElementById("payment-nav-label").textContent = show ? "Về CRM" : "Duyệt nộp tiền";
             if (show) {
@@ -2224,6 +2364,7 @@
             }
             document.getElementById("crm-dashboard").classList.add("hidden");
             document.getElementById("payment-page").classList.add("hidden");
+            document.getElementById("shipping-page").classList.add("hidden");
             document.getElementById("payment-nav-label").textContent = "Duyệt nộp tiền";
             document.getElementById("staff-page").classList.remove("hidden");
             document.getElementById("staff-nav-label").textContent = "Về CRM";
@@ -2326,7 +2467,7 @@
         }
 
         async function refreshPaymentBadge() {
-            if (isAdminRole() && state.dataSessionToken && !paymentReviewsInProgress) {
+            if (canReviewPayments() && state.dataSessionToken && !paymentReviewsInProgress) {
                 await loadPaymentRequests(true, true);
             }
         }
@@ -2370,7 +2511,7 @@
         }
 
         async function reviewPaymentRequest(button, approve) {
-            if (!isAdminRole() || button.disabled) return;
+            if (!canReviewPayments() || button.disabled) return;
             const buttons = button.closest("article").querySelectorAll("button");
             buttons.forEach(item => { item.disabled = true; });
             ++paymentReviewsInProgress;
