@@ -121,7 +121,7 @@
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 bg-[#156035] text-white rounded flex items-center justify-center font-bold text-base">S</div>
                     <div class="flex items-center gap-2">
-                        <span class="font-bold text-[#156035] tracking-tight text-base">SHINE CRM</span>
+                        <button type="button" onclick="showPaymentPage(false)" aria-label="Về trang CRM" class="font-bold text-[#156035] tracking-tight text-base hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#156035]">SHINE CRM</button>
                         <div class="flex items-center gap-2">
                         <span id="header-user-name" class="text-xs sm:text-sm font-bold text-[#132A1C]">tranngockhanh</span>
                         <span id="header-user-role" class="px-2 py-0.5 text-[11px] font-bold rounded bg-[#ECF5E3] text-[#156035] border border-[#B7D89C]">
@@ -1276,8 +1276,9 @@
             const list = document.getElementById("shipping-list");
             const previous = new Map([...list.querySelectorAll("input[data-customer]")].map(input => [input.dataset.customer, input.value]));
             list.innerHTML = customers.map(c => `<tr class="border-t border-[#D1DFCE]">
-                <td class="p-3"><button type="button" class="text-[#156035] font-semibold" onclick="openCustomerModal('${escapeHtml(c.id)}')">${escapeHtml(c.hoTenKhach || c.hoTenThanNhan)}</button></td>
-                <td class="p-3">${escapeHtml(c.sdt)}</td><td class="p-3">${escapeHtml(c.diaChi)}</td>
+                <td class="p-3"><button type="button" title="Bấm để sao chép họ tên" class="text-left text-[#156035] font-semibold hover:underline" onclick="copyShippingText(this)">${escapeHtml(c.hoTenKhach || c.hoTenThanNhan)}</button></td>
+                <td class="p-3"><button type="button" title="Bấm để sao chép SĐT" class="text-left hover:underline" onclick="copyShippingText(this)">${escapeHtml(c.sdt)}</button></td>
+                <td class="p-3"><button type="button" title="Bấm để sao chép địa chỉ" class="text-left whitespace-pre-wrap hover:underline" onclick="copyShippingText(this)">${escapeHtml(c.diaChi)}</button></td>
                 <td class="p-3">${isAccountantRole()
                     ? `<form class="flex gap-2" onsubmit="saveShipping(event, '${escapeHtml(c.id)}')">
                         <input data-customer="${escapeHtml(c.id)}" aria-label="Mã đơn hàng" maxlength="200" required class="min-w-0 rounded border px-2 py-1 text-sm">
@@ -1285,6 +1286,35 @@
                     : '<span class="text-[#4A6354]">Chờ Kế toán nhập mã</span>'}</td>
             </tr>`).join("");
             list.querySelectorAll("input[data-customer]").forEach(input => { input.value = previous.get(input.dataset.customer) || ""; });
+        }
+
+        async function copyShippingText(button) {
+            const text = button.textContent;
+            if (!text) return;
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast("Đã sao chép.", "success");
+                return;
+            } catch {
+                // Một số trình duyệt cần sao chép bằng vùng văn bản được chọn.
+            }
+            const previousFocus = document.activeElement;
+            const field = document.createElement("textarea");
+            field.value = text;
+            field.readOnly = true;
+            field.style.cssText = "position:fixed;left:0;top:0;opacity:0;pointer-events:none;";
+            document.body.appendChild(field);
+            field.select();
+            let copied = false;
+            try {
+                copied = document.execCommand("copy");
+            } catch {
+                copied = false;
+            } finally {
+                field.remove();
+                previousFocus?.focus({preventScroll: true});
+            }
+            showToast(copied ? "Đã sao chép." : "Chưa sao chép được. Anh/chị hãy chọn nội dung và sao chép thủ công.", copied ? "success" : "error");
         }
 
         async function saveShipping(event, id) {
