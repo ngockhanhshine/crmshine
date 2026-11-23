@@ -1651,6 +1651,12 @@
                 );
             }
 
+            if (!state.consultationOrder) {
+                list = [...list].sort((a, b) =>
+                    (b.ngayDangKy || "").localeCompare(a.ngayDangKy || "") ||
+                    (Number(b.rowIndex) || 0) - (Number(a.rowIndex) || 0)
+                );
+            }
             list = filterConsultations(list);
             const order = state.consultationOrder;
             const sort = document.getElementById("consultation-sort");
