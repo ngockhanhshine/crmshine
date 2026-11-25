@@ -14,7 +14,7 @@
 <div class="page-heading"><h1>Huấn luyện</h1><span id="student-count" class="muted"></span></div>
 <div id="access-message" class="card" hidden><p id="access-text"></p><a class="crm-link" href="File_CRM_huanluyen.html">Đăng nhập qua CRM</a>
 <form id="training-login" style="max-width:420px;margin-top:18px">
-<div class="form-row"><label for="login-username">Tài khoản HLV</label><input id="login-username" autocomplete="username" required></div>
+<div class="form-row"><label for="login-username">Tài khoản HLV hoặc Admin</label><input id="login-username" autocomplete="username" required></div>
 <div class="form-row"><label for="login-password">Mật khẩu</label><input id="login-password" type="password" autocomplete="current-password" required></div>
 <p id="login-error" role="alert" style="color:#a12a25;margin-top:8px"></p>
 <div class="form-actions"><button id="login-button" type="submit" class="primary">Đăng nhập huấn luyện</button></div>
@@ -30,7 +30,7 @@
 <div class="grid-two"><div class="card"><div class="card-title"><h2>Ảnh trước tập và phiếu khám</h2></div><p id="before-status" class="muted"></p><div id="before-gallery" class="photo-grid"></div></div><div class="card"><div class="card-title"><h2>Phiếu kiểm tra PDF</h2></div><div id="report-list"></div></div></div>
 <div class="card"><div class="card-title"><h2>Ảnh sau tập</h2></div><label for="after-upload">Tải thêm ảnh JPG, PNG hoặc WebP, tối đa 4 MB mỗi ảnh</label><input id="after-upload" type="file" multiple accept="image/jpeg,image/png,image/webp"><p id="upload-status" role="status" class="muted"></p><div id="after-gallery" class="photo-grid" style="margin-top:12px"></div></div>
 </div></section>
-<section id="panel-week" role="tabpanel" aria-labelledby="tab-week" hidden><div class="card"><div class="week-controls"><button id="previous-week" type="button" aria-label="Tuần trước">←</button><span id="week-label" class="week-label"></span><button id="next-week" type="button" aria-label="Tuần sau">→</button><button id="this-week" type="button">Tuần này</button><button id="copy-week" type="button">Sao chép lịch tuần trước</button></div><p id="week-status" role="status" class="muted" style="margin-bottom:10px"></p><div class="schedule-scroll"><table class="week-grid"><thead id="week-head"></thead><tbody id="week-body"></tbody></table></div></div></section>
+<section id="panel-week" role="tabpanel" aria-labelledby="tab-week" hidden><div class="card"><div class="week-controls"><div id="week-coach-filter" hidden><label for="week-coach">HLV</label><select id="week-coach"><option value="">Tất cả HLV</option></select></div><button id="previous-week" type="button" aria-label="Tuần trước">←</button><span id="week-label" class="week-label"></span><button id="next-week" type="button" aria-label="Tuần sau">→</button><button id="this-week" type="button">Tuần này</button><button id="copy-week" type="button">Sao chép lịch tuần trước</button></div><p id="week-status" role="status" class="muted" style="margin-bottom:10px"></p><div class="schedule-scroll"><table class="week-grid"><thead id="week-head"></thead><tbody id="week-body"></tbody></table></div></div></section>
 <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="results-empty" class="empty-panel">Chọn học viên để xem kết quả tập.</div><div id="results-content" hidden><div class="card"><div class="card-title"><h2>Thông tin đầu vào hiện tại</h2></div><div id="profile-summary"></div></div>
 <form id="log-form" class="card"><div class="card-title"><h2 id="log-form-title">Ghi buổi tập</h2></div><div class="log-entry-grid"><div><label for="log-date">Ngày tập · Ctrl + ;</label><input id="log-date" type="date" required></div><div><label for="log-student">Học viên</label><input id="log-student" readonly></div><div><label for="log-coach">HLV</label><input id="log-coach" readonly></div></div><div class="log-text-grid"><div><label for="log-before">Trước tập</label><textarea id="log-before" rows="4" maxlength="15000"></textarea></div><div><label for="log-after">Sau tập</label><textarea id="log-after" rows="4" maxlength="15000"></textarea></div><div><label for="log-exercises">Chỉ định bài tập</label><textarea id="log-exercises" rows="4" maxlength="15000"></textarea></div><div><label for="log-notes">Ghi chú thêm</label><textarea id="log-notes" rows="4" maxlength="15000"></textarea></div></div><div class="form-actions"><button id="cancel-log-edit" type="button" hidden>Huỷ sửa</button><button id="save-log" class="primary" type="submit">Lưu buổi tập</button></div></form>
 <div class="card"><div class="card-title"><h2>Lịch sử huấn luyện</h2><span id="logs-status" class="muted"></span></div><div class="table-scroll"><table class="log-table"><thead><tr><th>Ngày</th><th>Học viên</th><th>HLV</th><th>Trước tập</th><th>Sau tập</th><th>Chỉ định bài tập</th><th>Ghi chú thêm</th><th></th></tr></thead><tbody id="logs-body"></tbody></table></div></div></div></section>
@@ -45,7 +45,50 @@ const CONFIG = window.SHINE_TRAINING_CONFIG || {};
 const SESSION_KEY = "shine_crm_training_test_session";
 const DATA_KEY = "shine_crm_training_test_data_session";
 const $ = id => document.getElementById(id);
-const state = {user:null, token:"", students:[], studentId:"", tab:"intake", today:"", week:"", slots:[], logs:[], bootstrapVersion:0, logId:"", logVersion:"", profileDirty:false, logDirty:false, busy:0, mediaVersion:0, weekVersion:0, logsVersion:0, slot:null, uploadBusy:false};
+const state = {user:null, token:"", students:[], studentId:"", tab:"intake", today:"", week:"", slots:[], logs:[], coaches:[], weekCoach:"", bootstrapVersion:0, logId:"", logVersion:"", profileDirty:false, logDirty:false, busy:0, mediaVersion:0, weekVersion:0, logsVersion:0, slot:null, uploadBusy:false};
+const isTrainingAdmin = () => String(state.user?.role || "").trim().toLowerCase() === "admin";
+const WEEK_CACHE_KEY = "shine_training_week_cache_v1";
+let weekCacheSession = "";
+let weekCache = new Map();
+const weekPending = new Map();
+const weekGenerations = new Map();
+function weekSessionId() {
+  return [CONFIG.DATA_SCRIPT_URL, state.user?.username, state.user?.role, state.token].join("|");
+}
+function clearWeekCache() {
+  weekCacheSession="";weekCache.clear();weekPending.clear();weekGenerations.clear();
+  try { sessionStorage.removeItem(WEEK_CACHE_KEY); } catch {}
+}
+function prepareWeekCache() {
+  const session=weekSessionId();
+  if(weekCacheSession===session)return;
+  weekCacheSession=session;weekCache=new Map();weekPending.clear();weekGenerations.clear();
+  try {
+    const saved=JSON.parse(sessionStorage.getItem(WEEK_CACHE_KEY));
+    if(saved?.session===session&&Array.isArray(saved.weeks)) {
+      weekCache=new Map(saved.weeks.filter(item=>Array.isArray(item)&&typeof item[0]==="string"&&Array.isArray(item[1])&&item[1].every(slot=>slot&&typeof slot.date==="string"&&typeof slot.start==="string")));
+    } else sessionStorage.removeItem(WEEK_CACHE_KEY);
+  } catch {}
+}
+function storeWeekCache(key,slots) {
+  weekGenerations.set(key,(weekGenerations.get(key)||0)+1);
+  weekCache.set(key,slots);
+  try { sessionStorage.setItem(WEEK_CACHE_KEY,JSON.stringify({session:weekCacheSession,weeks:[...weekCache]})); } catch {}
+}
+function currentWeekKey() { return state.week+"|"+(isTrainingAdmin()?state.weekCoach:""); }
+function applyTrainingPermissions() {
+  const admin=isTrainingAdmin();
+  document.querySelectorAll("#profile-form input, #profile-form textarea, #profile-form select").forEach(control=>{control.disabled=admin;});
+  $("save-profile").hidden=admin;$("log-form").hidden=admin;
+  $("after-upload").hidden=admin;$("after-upload").disabled=admin||state.uploadBusy;
+  document.querySelector('label[for="after-upload"]').hidden=admin;
+  $("copy-week").hidden=admin;$("week-coach-filter").hidden=!admin;
+  const selected=state.weekCoach;
+  $("week-coach").replaceChildren(new Option("Tất cả HLV",""));
+  for(const coach of state.coaches)$("week-coach").add(new Option(coach,coach));
+  if(selected&&!state.coaches.includes(selected))$("week-coach").add(new Option(selected,selected));
+  $("week-coach").value=selected;
+}
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MONEY_COLS = [12,14,16,18,20,22,27,29];
 const money = value => (Number(value)||0).toLocaleString("en-US") + " đ";
@@ -64,7 +107,7 @@ function toast(message, error=false) {
 function errorMessage(status) {
   return ({forbidden:"Anh/chị không còn quyền truy cập học viên này. Hãy tải lại danh sách.",training_setup_required:"Admin cần chạy caiDatTrangHuanLuyen trong Apps Script bản thử.",conflict:"Dữ liệu đã thay đổi ở phiên khác. Hãy tải lại trước khi lưu tiếp.",busy:"Hệ thống đang xử lý. Vui lòng thử lại.",student_not_active:"Hãy chọn học viên đang học và được giao cho anh/chị.",schedule_conflict:"Học viên đã có ca học trùng giờ. Chưa lưu thay đổi.",invalid_training:"Một số thông tin chưa hợp lệ. Hãy kiểm tra lại.",profile_too_long:"Thông tin huấn luyện quá dài. Hãy rút gọn ghi chú để lưu.",photo_setup_required:"Admin cần chạy caiDatLuuAnhCRM trong dự án Apps Script bản thử.",photo_binding_conflict:"Thư mục ảnh đang không khớp hồ sơ. Hãy báo Admin kiểm tra.",invalid_photo:"Ảnh phải là JPG, PNG hoặc WebP, tối đa 4 MB.",photo_not_found:"Không tìm thấy ảnh."})[status] || "Chưa xác nhận được thao tác. Vui lòng thử lại.";
 }
-function goLogin() { state.profileDirty=false;state.logDirty=false;state.uploadBusy=false;state.user=null;localStorage.removeItem(SESSION_KEY);localStorage.removeItem(DATA_KEY);location.replace(CONFIG.CRM_FILE || "File_CRM_huanluyen.html"); }
+function goLogin() { clearWeekCache();state.profileDirty=false;state.logDirty=false;state.uploadBusy=false;state.user=null;localStorage.removeItem(SESSION_KEY);localStorage.removeItem(DATA_KEY);location.replace(CONFIG.CRM_FILE || "File_CRM_huanluyen.html"); }
 async function api(action, fields={}) {
   const response=await fetch(CONFIG.DATA_SCRIPT_URL,{method:"POST",body:JSON.stringify({action,token:state.token,...fields}),signal:AbortSignal.timeout(60000)});
   if(!response.ok) throw new Error("Kết nối với hệ thống bị gián đoạn.");
@@ -89,7 +132,7 @@ function renderPicker(){
   const students=state.students.filter(student=>status==="ALL"||student.profile.studyStatus===status);
   $("student-options").innerHTML=optionsMarkup(students);
   $("active-students").innerHTML=optionsMarkup(state.students.filter(student=>student.profile.studyStatus==="Đang học"));
-  $("student-count").textContent=state.students.length+" học viên được giao";
+  $("student-count").textContent=state.students.length+(isTrainingAdmin()?" học viên của tất cả HLV":" học viên được giao");
 }
 function hasDraft(){return state.profileDirty||state.logDirty||state.uploadBusy;}
 function canLeaveDraft(){return !hasDraft()||confirm("Có nội dung chưa lưu. Anh/chị muốn chuyển sang học viên khác?");}
@@ -108,7 +151,7 @@ async function bootstrap(silent=false){
   const previous=selectedStudent();
   const result=await api("trainingBootstrap");
   if(version!==state.bootstrapVersion||(silent&&(state.busy||hasDraft()||state.logVersion)))return;
-  state.user=result.user;state.today=result.today;state.students=result.students;
+  state.user=result.user;state.today=result.today;state.students=result.students;state.coaches=result.coaches||[];
   state.students.sort((a,b)=>(b.data[0]||"").localeCompare(a.data[0]||""));
   if(!state.week)state.week=monday(state.today);
   $("identity").textContent=result.user.username+" · "+result.user.role;
@@ -120,8 +163,9 @@ async function bootstrap(silent=false){
   }else if(!silent||JSON.stringify(previous)!==JSON.stringify(selectedStudent())){
     if(!hasDraft())renderStudent();
   }
+  applyTrainingPermissions();
   $("workspace").hidden=false;$("access-message").hidden=true;
-  if(!silent){if(state.tab==="week")await loadWeek();else if(state.studentId&&state.tab==="results")await loadLogs();else if(state.studentId)void loadMedia();}
+  if(!silent){if(state.tab==="week")await loadWeek(true);else if(state.studentId&&state.tab==="results")await loadLogs();else if(state.studentId)void loadMedia();}
 }
 function renderStudent(){
   const student=selectedStudent();
@@ -134,7 +178,7 @@ function renderStudent(){
   $("eye-note").textContent=student.data[9]||"Chưa có ghi chú.";
   $("payment-summary").textContent="Tổng phí: "+money(student.data[10])+"\nTổng đã nộp: "+money(student.data[11]);
   $("payments-body").innerHTML=MONEY_COLS.map((col,i)=>`<tr><td>Lần ${i+1}</td><td>${esc(money(student.data[col]))}</td><td>${esc(dateVN(String(student.data[col+1]||"")))}</td></tr>`).join("");
-  renderProfile(student.profile);resetLogForm();
+  renderProfile(student.profile);resetLogForm();applyTrainingPermissions();
 }
 function renderProfile(profile){
   $("glasses-fields").innerHTML=[['right','MP'],['left','MT']].map(([eye,label])=>`<tr><th>${label}</th>${profile.glasses[eye].map((value,index)=>`<td><input id="glass-${eye}-${index}" maxlength="1000" aria-label="${label} ${['Sph','Cyl','Ax','VA','Ghi chú'][index]}" value="${esc(value)}"></td>`).join("")}</tr>`).join("");
@@ -148,7 +192,7 @@ function profileSummary(p){
   return `<div class="table-scroll"><table class="glasses"><thead><tr><th>Mắt</th><th>Sph</th><th>Cyl</th><th>Ax</th><th>VA</th><th>Ghi chú</th></tr></thead><tbody>${glasses}</tbody></table></div><div class="form-row"><label>Brockstring</label><div class="note">${esc(p.brockstring||"—")}</div></div><div class="form-row"><label>Chú ý</label><div class="note">${esc(p.attention||"—")}</div></div>`;
 }
 async function saveProfile(event){
-  event.preventDefault();const student=selectedStudent();if(!student)return;
+  event.preventDefault();const student=selectedStudent();if(!student||isTrainingAdmin())return;
   const profile={glasses:{right:[],left:[]},brockstring:$("brockstring").value,attention:$("attention").value,studyStatus:document.querySelector("input[name=study-status-radio]:checked").value};
   for(const eye of ['right','left'])profile.glasses[eye]=Array.from({length:5},(_,i)=>$("glass-"+eye+"-"+i).value);
   ++state.bootstrapVersion;
@@ -161,22 +205,51 @@ async function showTab(tab){
   $("student-toolbar").hidden=tab==="week";
   try{if(tab==="week")await loadWeek();else if(state.studentId&&tab==="results")await loadLogs();else if(state.studentId)void loadMedia();}catch(error){toast(error.message,true);}
 }
-async function loadWeek(){
-  const version=++state.weekVersion;const week=state.week;
-  $("week-label").textContent=dateVN(week)+" – "+dateVN(dateOffset(week,6));$("week-status").textContent="Đang tải lịch…";
-  $("week-head").replaceChildren();$("week-body").replaceChildren();
-  const result=await api("trainingWeek",{week});
-  if(version!==state.weekVersion||week!==state.week)return;
-  state.slots=result.slots;renderWeek();$("week-status").textContent="Chọn một ca để xếp hoặc đổi học viên.";
+async function loadWeek(force=false){
+  prepareWeekCache();
+  const version=++state.weekVersion;
+  const week=state.week;
+  const coach=isTrainingAdmin()?state.weekCoach:"";
+  const key=currentWeekKey();
+  const session=weekCacheSession;
+  $("week-label").textContent=dateVN(week)+" – "+dateVN(dateOffset(week,6));
+  if(weekCache.has(key)) {
+    state.slots=weekCache.get(key);renderWeek();
+    $("week-status").textContent=force?"Đang cập nhật lịch…":"Lịch đã lưu trong tab này. Bấm Tải lại để lấy thay đổi mới.";
+    if(!force)return;
+  } else {
+    $("week-status").textContent="Đang tải lịch…";
+    $("week-head").replaceChildren();$("week-body").replaceChildren();
+  }
+  let pending=force?null:weekPending.get(key);
+  if(!pending) {
+    const generation=(weekGenerations.get(key)||0)+1;
+    weekGenerations.set(key,generation);
+    pending=api("trainingWeek",{week,coach}).then(result=>{
+      if(session===weekCacheSession&&generation===weekGenerations.get(key))storeWeekCache(key,result.slots);
+      return result;
+    });
+    weekPending.set(key,pending);
+  }
+  try {
+    const result=await pending;
+    if(version!==state.weekVersion||week!==state.week||coach!==(isTrainingAdmin()?state.weekCoach:"")||session!==weekCacheSession)return;
+    state.slots=result.slots;renderWeek();
+    $("week-status").textContent=isTrainingAdmin()?"Lịch huấn luyện theo HLV.":"Chọn một ca để xếp hoặc đổi học viên.";
+  } finally {
+    if(weekPending.get(key)===pending)weekPending.delete(key);
+  }
 }
+
 function renderWeek(){
   const days=Array.from({length:7},(_,i)=>dateOffset(state.week,i));
   $("week-head").innerHTML='<tr><th>Giờ</th>'+days.map((date,i)=>`<th>${['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ nhật'][i]}<br><span class="muted">${esc(dateVN(date))}</span></th>`).join('')+'</tr>';
-  const slotMap=new Map(state.slots.map(slot=>[slot.date+'|'+slot.start,slot]));
-  $("week-body").innerHTML=Array.from({length:56},(_,i)=>{const minute=8*60+i*15;const start=String(Math.floor(minute/60)).padStart(2,'0')+':'+String(minute%60).padStart(2,'0');return `<tr><th>${start}</th>`+days.map(date=>{const slot=slotMap.get(date+'|'+start);const student=state.students.find(s=>s.studentId===slot?.studentId);const label=slot?.studentId?(studentName(student)||'Học viên đã chuyển phụ trách'):'+';return `<td><button type="button" class="${slot?.studentId?'filled':''}" data-date="${date}" data-start="${start}" aria-label="${esc(dateVN(date)+' '+start+' '+label)}">${esc(label)}</button></td>`;}).join('')+'</tr>';}).join('');
+  const slotMap=new Map();
+  for(const slot of state.slots){const key=slot.date+'|'+slot.start;if(!slotMap.has(key))slotMap.set(key,[]);slotMap.get(key).push(slot);}
+  $("week-body").innerHTML=Array.from({length:56},(_,i)=>{const minute=8*60+i*15;const start=String(Math.floor(minute/60)).padStart(2,'0')+':'+String(minute%60).padStart(2,'0');return `<tr><th>${start}</th>`+days.map(date=>{const matches=(slotMap.get(date+'|'+start)||[]).filter(slot=>slot.studentId);const label=matches.length?matches.map(slot=>{const student=state.students.find(s=>s.studentId===slot.studentId);return (isTrainingAdmin()?slot.coach+': ':'')+(studentName(student)||'Học viên đã chuyển phụ trách');}).join('\n'):(isTrainingAdmin()?'—':'+');return `<td><button type="button" style="white-space:pre-line" ${isTrainingAdmin()?'disabled':''} class="${matches.length?'filled':''}" data-date="${date}" data-start="${start}" aria-label="${esc(dateVN(date)+' '+start+' '+label)}">${esc(label)}</button></td>`;}).join('')+'</tr>';}).join('');
 }
 function openSlot(date,start){
-  if(state.busy)return;
+  if(state.busy||isTrainingAdmin())return;
   const current=state.slots.find(slot=>slot.date===date&&slot.start===start);
   state.slot={date,start,version:current?.version||""};
   const student=state.students.find(s=>s.studentId===current?.studentId);
@@ -186,6 +259,7 @@ function openSlot(date,start){
   $("slot-dialog").showModal();$("slot-student").focus();
 }
 async function saveSlot(clear=false){
+  if(isTrainingAdmin())return;
   const text=$("slot-student").value.trim();
   const student=state.students.find(s=>studentOption(s)===text&&s.profile.studyStatus==="Đang học");
   if(!clear&&!student){toast("Hãy chọn một học viên trong danh sách.",true);return;}
@@ -194,6 +268,7 @@ async function saveSlot(clear=false){
   ++state.weekVersion;
   const index=state.slots.findIndex(slot=>slot.id===result.slot.id);
   if(index<0)state.slots.push(result.slot);else state.slots[index]=result.slot;
+  storeWeekCache(currentWeekKey(),state.slots);
   $("slot-dialog").close();renderWeek();toast(clear?"Đã xoá ca học.":"Đã lưu ca học.");
 }
 async function loadLogs(){
@@ -214,6 +289,7 @@ function renderLogs(){
   $("logs-body").innerHTML=state.logs.map(log=>`<tr><td>${esc(dateVN(log.date))}</td><td>${esc(studentName(selectedStudent()))}</td><td>${esc(log.coach)}</td><td>${esc(log.before)}</td><td>${esc(log.after)}</td><td>${esc(log.exercises)}</td><td>${esc(log.notes)}</td><td>${log.editable?`<button type="button" data-log="${esc(log.id)}">Sửa</button>`:''}<details><summary>Đầu vào</summary>${profileSummary(log.snapshot)}</details></td></tr>`).join('');
 }
 function editLog(id){
+  if(isTrainingAdmin())return;
   const log=state.logs.find(item=>item.id===id);if(!log?.editable)return;
   if(state.logDirty&&!confirm("Thay nội dung buổi tập đang nhập bằng bản ghi đã chọn?"))return;
   state.logId=log.id;state.logVersion=log.version;$("log-date").value=log.date;
@@ -221,7 +297,7 @@ function editLog(id){
   state.logDirty=false;$("log-form-title").textContent="Sửa buổi tập";$("cancel-log-edit").hidden=false;$("log-form").scrollIntoView({block:'start',behavior:'smooth'});
 }
 async function saveLog(event){
-  event.preventDefault();const student=selectedStudent();if(!student)return;
+  event.preventDefault();const student=selectedStudent();if(!student||isTrainingAdmin())return;
   const entry={id:state.logId,date:$("log-date").value};for(const key of ['before','after','exercises','notes'])entry[key]=$("log-"+key).value;
   ++state.logsVersion;
   const result=await api("trainingSaveLog",{studentId:student.studentId,version:state.logVersion,entry});
@@ -255,7 +331,7 @@ function renderGallery(category,files,studentId,version){
 }
 function toBase64(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(new Error('Chưa đọc được ảnh.'));reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.readAsDataURL(file);});}
 async function uploadAfter(){
-  const input=$('after-upload');const files=[...input.files];input.value='';const student=selectedStudent();if(!student||!files.length||state.uploadBusy)return;
+  const input=$('after-upload');const files=[...input.files];input.value='';const student=selectedStudent();if(!student||!files.length||state.uploadBusy||isTrainingAdmin())return;
   state.uploadBusy=true;input.disabled=true;state.busy++;let saved=0;
   try{for(const file of files){if(!PHOTO_TYPES.includes(file.type)||!file.size||file.size>4*1024*1024)throw new Error('Ảnh phải là JPG, PNG hoặc WebP, tối đa 4 MB.');$('upload-status').textContent='Đang tải '+(saved+1)+'/'+files.length+' ảnh…';const base64=await toBase64(file);await api('trainingUploadAfter',{studentId:student.studentId,base64,mimeType:file.type,name:file.name,uploadId:crypto.randomUUID()});saved++;}toast('Đã tải '+saved+' ảnh.');}catch(error){toast(error.message,true);}finally{state.uploadBusy=false;input.disabled=false;state.busy--;$('upload-status').textContent=saved?'Đã tải '+saved+' ảnh.':'';if(state.studentId===student.studentId&&saved)void loadMedia();}
 }
@@ -280,15 +356,16 @@ function wireEvents(){
   $('log-date').addEventListener('keydown',event=>{if(event.ctrlKey&&(event.key===';'||event.code==='Semicolon')){event.preventDefault();$('log-date').value=todayVN();state.logDirty=true;}});
   $('cancel-log-edit').addEventListener('click',()=>{if(!state.logDirty||confirm('Bỏ thay đổi của buổi tập đang sửa?'))resetLogForm();});
   $('logs-body').addEventListener('click',event=>{const button=event.target.closest('[data-log]');if(button)editLog(button.dataset.log);});
+  $('week-coach').addEventListener('change',()=>{state.weekCoach=$('week-coach').value;void loadWeek().catch(error=>toast(error.message,true));});
   $('week-body').addEventListener('click',event=>{const button=event.target.closest('[data-date]');if(button)openSlot(button.dataset.date,button.dataset.start);});
   const changeWeek=async days=>{if(state.busy)return;state.week=dateOffset(state.week,days);try{await loadWeek();}catch(error){toast(error.message,true);}};
   $('previous-week').addEventListener('click',()=>void changeWeek(-7));$('next-week').addEventListener('click',()=>void changeWeek(7));$('this-week').addEventListener('click',()=>{if(state.busy)return;state.week=monday(todayVN());void changeWeek(0);});
-  $('copy-week').addEventListener('click',()=>void runButton($('copy-week'),async()=>{const result=await api('trainingCopyWeek',{week:state.week,requestId:crypto.randomUUID()});await loadWeek();toast('Đã chép '+result.copied+' ca. Bỏ qua '+result.skipped+' ca đã có lịch hoặc học viên không còn đang học.');}));
+  $('copy-week').addEventListener('click',()=>void runButton($('copy-week'),async()=>{const result=await api('trainingCopyWeek',{week:state.week,requestId:crypto.randomUUID()});await loadWeek(true);toast('Đã chép '+result.copied+' ca. Bỏ qua '+result.skipped+' ca đã có lịch hoặc học viên không còn đang học.');}));
   $('slot-form').addEventListener('submit',event=>{event.preventDefault();void runButton($('save-slot'),()=>saveSlot());});$('clear-slot').addEventListener('click',()=>void runButton($('clear-slot'),()=>saveSlot(true)));$('close-slot').addEventListener('click',()=>{if(!state.busy)$('slot-dialog').close();});
   $('slot-dialog').addEventListener('cancel',event=>{if(state.busy)event.preventDefault();});
   $('close-image').addEventListener('click',()=>{$('image-dialog').close();$('image-preview').removeAttribute('src');});
   $('after-upload').addEventListener('change',()=>void uploadAfter());
-  $('refresh-button').addEventListener('click',()=>void runButton($('refresh-button'),async()=>{if(!canLeaveDraft())return;state.profileDirty=false;state.logDirty=false;await bootstrap();}));
+  $('refresh-button').addEventListener('click',()=>void runButton($('refresh-button'),async()=>{if(!canLeaveDraft())return;state.profileDirty=false;state.logDirty=false;clearWeekCache();await bootstrap();}));
   $('logout-button').addEventListener('click',()=>{if(!canLeaveDraft())return;const token=state.token;void fetch(CONFIG.DATA_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'closeDataSession',token}),keepalive:true}).catch(()=>{});goLogin();});
   window.addEventListener('beforeunload',event=>{if(hasDraft()){event.preventDefault();event.returnValue='';}});
   window.addEventListener('storage',event=>{if([SESSION_KEY,DATA_KEY].includes(event.key))goLogin();});
@@ -306,7 +383,7 @@ async function loginTraining(event){
     wireEvents();
     try{await bootstrap();}catch(error){
       void fetch(CONFIG.DATA_SCRIPT_URL,{method:'POST',body:JSON.stringify({action:'closeDataSession',token:state.token}),keepalive:true}).catch(()=>{});
-      state.token='';throw new Error(error.status==='forbidden'?'Hãy đăng nhập bằng tài khoản có quyền Huấn luyện viên.':error.message);
+      state.token='';throw new Error(error.status==='forbidden'?'Hãy đăng nhập bằng tài khoản Huấn luyện viên hoặc Admin.':error.message);
     }
     localStorage.setItem(SESSION_KEY,JSON.stringify({user:state.user,staff:[]}));
     localStorage.setItem(DATA_KEY,JSON.stringify({username:state.user.username,url:CONFIG.DATA_SCRIPT_URL,token:state.token}));
@@ -319,8 +396,8 @@ async function init(){
   $('training-login').addEventListener('submit',event=>void loginTraining(event));
   setInterval(async()=>{if(!state.token||document.hidden||state.busy||hasDraft()||state.logVersion||$('slot-dialog').open||$('image-dialog').open)return;try{await bootstrap(true);}catch(error){banner(error.message);}},30000);
   let session,data;try{session=JSON.parse(localStorage.getItem(SESSION_KEY));data=JSON.parse(localStorage.getItem(DATA_KEY));}catch{}
-  if(!session?.user||!data?.token||data.url!==CONFIG.DATA_SCRIPT_URL||data.username!==session.user.username){accessMessage('Anh/chị hãy đăng nhập bằng tài khoản HLV ở trang CRM bản thử.');return;}
-  if(String(session.user.role).trim().toLowerCase()!=='huấn luyện viên'){accessMessage('Trang này dành cho tài khoản Huấn luyện viên. Anh/chị có thể đổi tài khoản tại CRM.');return;}
+  if(!session?.user||!data?.token||data.url!==CONFIG.DATA_SCRIPT_URL||data.username!==session.user.username){accessMessage('Anh/chị hãy đăng nhập bằng tài khoản HLV hoặc Admin.');return;}
+  if(!['huấn luyện viên','admin'].includes(String(session.user.role).trim().toLowerCase())){accessMessage('Trang này dành cho tài khoản Huấn luyện viên hoặc Admin. Anh/chị có thể đổi tài khoản tại CRM.');return;}
   state.user=session.user;state.token=data.token;wireEvents();
   try{await bootstrap();}catch(error){banner(error.message);}
 }

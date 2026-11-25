@@ -1380,7 +1380,7 @@
             showPaymentPage(false, false);
             document.getElementById("payment-nav").classList.toggle("hidden", !canReviewPayments());
             document.getElementById("shipping-nav").classList.toggle("hidden", !canReviewPayments());
-            document.getElementById("training-nav").classList.toggle("hidden", !isCoachRole());
+            document.getElementById("training-nav").classList.toggle("hidden", !(isCoachRole() || isAdminRole()));
             document.getElementById("add-customer-button").classList.toggle("hidden", isCoachRole() || isAccountantRole());
             document.getElementById("staff-nav").classList.toggle("hidden", !isAdmin);
             document.getElementById("header-user-name").textContent = state.currentUser.username;
