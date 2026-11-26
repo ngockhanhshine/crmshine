@@ -2139,7 +2139,7 @@
             }
             const coachSelect = document.getElementById("field-coach");
             coachSelect.replaceChildren(new Option("-- Chưa phân công --", ""));
-            const coaches = state.users.filter(u => u.role.trim().toLowerCase() === "huấn luyện viên");
+            const coaches = state.users.filter(u => ["huấn luyện viên", "admin"].includes(u.role.trim().toLowerCase()));
             coaches.forEach(u => coachSelect.add(new Option(u.username, u.username)));
             if (currentCustomer?.coach && !coaches.some(u => u.username === currentCustomer.coach)) {
                 coachSelect.add(new Option(currentCustomer.coach, currentCustomer.coach));

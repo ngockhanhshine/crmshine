@@ -36,7 +36,7 @@
 <div class="card"><div class="card-title"><h2>Lịch sử huấn luyện</h2><span id="logs-status" class="muted"></span></div><div class="table-scroll"><table class="log-table"><thead><tr><th>Ngày</th><th>Học viên</th><th>HLV</th><th>Trước tập</th><th>Sau tập</th><th>Chỉ định bài tập</th><th>Ghi chú thêm</th><th></th></tr></thead><tbody id="logs-body"></tbody></table></div></div></div></section>
 </div></main>
 <div id="toasts" class="toast-area" aria-live="polite"></div>
-<dialog id="slot-dialog"><div class="dialog-head"><h2 id="slot-title"></h2><button type="button" id="close-slot" aria-label="Đóng">×</button></div><form id="slot-form"><label for="slot-student">Học viên đang học</label><input id="slot-student" type="search" list="active-students" autocomplete="off" placeholder="Nhập tên hoặc SĐT"><datalist id="active-students"></datalist><div class="form-actions"><button id="clear-slot" type="button">Xoá ca</button><button id="save-slot" class="primary" type="submit">Lưu ca</button></div></form></dialog>
+<dialog id="slot-dialog"><div class="dialog-head"><h2 id="slot-title"></h2><button type="button" id="close-slot" aria-label="Đóng">×</button></div><form id="slot-form"><div id="slot-coach-field" class="form-row" hidden><label for="slot-coach">HLV phụ trách ca</label><select id="slot-coach"></select></div><label for="slot-student">Học viên đang học</label><input id="slot-student" type="search" list="active-students" autocomplete="off" placeholder="Nhập tên hoặc SĐT"><datalist id="active-students"></datalist><div class="form-actions"><button id="clear-slot" type="button">Xoá ca</button><button id="save-slot" class="primary" type="submit">Lưu ca</button></div></form></dialog>
 <dialog id="image-dialog" class="image-dialog"><div class="dialog-head"><h2 id="image-title"></h2><button id="close-image" type="button">Đóng ảnh</button></div><img id="image-preview" alt=""></dialog>
 <script src="crm-huanluyen-config.js"></script>
 <script>
@@ -76,13 +76,31 @@ function storeWeekCache(key,slots) {
   try { sessionStorage.setItem(WEEK_CACHE_KEY,JSON.stringify({session:weekCacheSession,weeks:[...weekCache]})); } catch {}
 }
 function currentWeekKey() { return state.week+"|"+(isTrainingAdmin()?state.weekCoach:""); }
+function invalidateWeekCache(week) {
+  for(const key of new Set([...weekCache.keys(), ...weekPending.keys()])) {
+    if(!key.startsWith(week+"|"))continue;
+    weekCache.delete(key);weekPending.delete(key);
+    weekGenerations.set(key,(weekGenerations.get(key)||0)+1);
+  }
+  try { sessionStorage.setItem(WEEK_CACHE_KEY,JSON.stringify({session:weekCacheSession,weeks:[...weekCache]})); } catch {}
+}
+function updateSlotCoach() {
+  const coach=isTrainingAdmin()?$("slot-coach").value:state.user.username;
+  const slot=state.slots.find(item=>item.date===state.slot.date&&item.start===state.slot.start&&item.coach.toLowerCase()===coach.toLowerCase());
+  state.slot={...state.slot,coach,version:slot?.version||""};
+  const students=state.students.filter(student=>student.coach.toLowerCase()===coach.toLowerCase()&&student.profile.studyStatus==="Đang học");
+  $("active-students").innerHTML=optionsMarkup(students);
+  const student=state.students.find(item=>item.studentId===slot?.studentId);
+  $("slot-student").value=student?studentOption(student):"";
+  $("clear-slot").hidden=!slot?.studentId;
+}
 function applyTrainingPermissions() {
   const admin=isTrainingAdmin();
   document.querySelectorAll("#profile-form input, #profile-form textarea, #profile-form select").forEach(control=>{control.disabled=admin;});
   $("save-profile").hidden=admin;$("log-form").hidden=admin;
   $("after-upload").hidden=admin;$("after-upload").disabled=admin||state.uploadBusy;
   document.querySelector('label[for="after-upload"]').hidden=admin;
-  $("copy-week").hidden=admin;$("week-coach-filter").hidden=!admin;
+  $("copy-week").hidden=false;$("week-coach-filter").hidden=!admin;
   const selected=state.weekCoach;
   $("week-coach").replaceChildren(new Option("Tất cả HLV",""));
   for(const coach of state.coaches)$("week-coach").add(new Option(coach,coach));
@@ -246,28 +264,33 @@ function renderWeek(){
   $("week-head").innerHTML='<tr><th>Giờ</th>'+days.map((date,i)=>`<th>${['Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy','Chủ nhật'][i]}<br><span class="muted">${esc(dateVN(date))}</span></th>`).join('')+'</tr>';
   const slotMap=new Map();
   for(const slot of state.slots){const key=slot.date+'|'+slot.start;if(!slotMap.has(key))slotMap.set(key,[]);slotMap.get(key).push(slot);}
-  $("week-body").innerHTML=Array.from({length:56},(_,i)=>{const minute=8*60+i*15;const start=String(Math.floor(minute/60)).padStart(2,'0')+':'+String(minute%60).padStart(2,'0');return `<tr><th>${start}</th>`+days.map(date=>{const matches=(slotMap.get(date+'|'+start)||[]).filter(slot=>slot.studentId);const label=matches.length?matches.map(slot=>{const student=state.students.find(s=>s.studentId===slot.studentId);return (isTrainingAdmin()?slot.coach+': ':'')+(studentName(student)||'Học viên đã chuyển phụ trách');}).join('\n'):(isTrainingAdmin()?'—':'+');return `<td><button type="button" style="white-space:pre-line" ${isTrainingAdmin()?'disabled':''} class="${matches.length?'filled':''}" data-date="${date}" data-start="${start}" aria-label="${esc(dateVN(date)+' '+start+' '+label)}">${esc(label)}</button></td>`;}).join('')+'</tr>';}).join('');
+  $("week-body").innerHTML=Array.from({length:56},(_,i)=>{const minute=8*60+i*15;const start=String(Math.floor(minute/60)).padStart(2,'0')+':'+String(minute%60).padStart(2,'0');return `<tr><th>${start}</th>`+days.map(date=>{const matches=(slotMap.get(date+'|'+start)||[]).filter(slot=>slot.studentId);const label=matches.length?matches.map(slot=>{const student=state.students.find(s=>s.studentId===slot.studentId);return (isTrainingAdmin()?slot.coach+': ':'')+(studentName(student)||'Học viên đã chuyển phụ trách');}).join('\n'):(isTrainingAdmin()?'—':'+');return `<td><button type="button" style="white-space:pre-line" class="${matches.length?'filled':''}" data-date="${date}" data-start="${start}" aria-label="${esc(dateVN(date)+' '+start+' '+label)}">${esc(label)}</button></td>`;}).join('')+'</tr>';}).join('');
 }
 function openSlot(date,start){
-  if(state.busy||isTrainingAdmin())return;
-  const current=state.slots.find(slot=>slot.date===date&&slot.start===start);
-  state.slot={date,start,version:current?.version||""};
-  const student=state.students.find(s=>s.studentId===current?.studentId);
+  if(state.busy)return;
+  state.slot={date,start,version:""};
   $("slot-title").textContent=dateVN(date)+" · "+start;
-  $("slot-student").value=student?studentOption(student):"";
-  $("clear-slot").hidden=!current?.studentId;
+  $("slot-coach-field").hidden=!isTrainingAdmin();
+  const coaches=[...new Set([...state.coaches,state.user.username])];
+  $("slot-coach").replaceChildren();
+  coaches.forEach(coach=>$("slot-coach").add(new Option(coach,coach)));
+  $("slot-coach").value=isTrainingAdmin()?(state.weekCoach||state.user.username):state.user.username;
+  $("slot-coach").disabled=isTrainingAdmin()&&!!state.weekCoach;
+  updateSlotCoach();
   $("slot-dialog").showModal();$("slot-student").focus();
 }
+
 async function saveSlot(clear=false){
-  if(isTrainingAdmin())return;
   const text=$("slot-student").value.trim();
-  const student=state.students.find(s=>studentOption(s)===text&&s.profile.studyStatus==="Đang học");
+  const student=state.students.find(s=>studentOption(s)===text&&s.profile.studyStatus==="Đang học"&&s.coach.toLowerCase()===state.slot.coach.toLowerCase());
   if(!clear&&!student){toast("Hãy chọn một học viên trong danh sách.",true);return;}
   ++state.weekVersion;
   const result=await api("trainingSaveSlot",{...state.slot,studentId:clear?"":student.studentId});
   ++state.weekVersion;
+  const visible=!isTrainingAdmin()||!state.weekCoach||state.weekCoach.toLowerCase()===result.slot.coach.toLowerCase();
   const index=state.slots.findIndex(slot=>slot.id===result.slot.id);
-  if(index<0)state.slots.push(result.slot);else state.slots[index]=result.slot;
+  if(visible){if(index<0)state.slots.push(result.slot);else state.slots[index]=result.slot;}
+  invalidateWeekCache(state.week);
   storeWeekCache(currentWeekKey(),state.slots);
   $("slot-dialog").close();renderWeek();toast(clear?"Đã xoá ca học.":"Đã lưu ca học.");
 }
@@ -356,11 +379,12 @@ function wireEvents(){
   $('log-date').addEventListener('keydown',event=>{if(event.ctrlKey&&(event.key===';'||event.code==='Semicolon')){event.preventDefault();$('log-date').value=todayVN();state.logDirty=true;}});
   $('cancel-log-edit').addEventListener('click',()=>{if(!state.logDirty||confirm('Bỏ thay đổi của buổi tập đang sửa?'))resetLogForm();});
   $('logs-body').addEventListener('click',event=>{const button=event.target.closest('[data-log]');if(button)editLog(button.dataset.log);});
+  $('slot-coach').addEventListener('change',updateSlotCoach);
   $('week-coach').addEventListener('change',()=>{state.weekCoach=$('week-coach').value;void loadWeek().catch(error=>toast(error.message,true));});
   $('week-body').addEventListener('click',event=>{const button=event.target.closest('[data-date]');if(button)openSlot(button.dataset.date,button.dataset.start);});
   const changeWeek=async days=>{if(state.busy)return;state.week=dateOffset(state.week,days);try{await loadWeek();}catch(error){toast(error.message,true);}};
   $('previous-week').addEventListener('click',()=>void changeWeek(-7));$('next-week').addEventListener('click',()=>void changeWeek(7));$('this-week').addEventListener('click',()=>{if(state.busy)return;state.week=monday(todayVN());void changeWeek(0);});
-  $('copy-week').addEventListener('click',()=>void runButton($('copy-week'),async()=>{const result=await api('trainingCopyWeek',{week:state.week,requestId:crypto.randomUUID()});await loadWeek(true);toast('Đã chép '+result.copied+' ca. Bỏ qua '+result.skipped+' ca đã có lịch hoặc học viên không còn đang học.');}));
+  $('copy-week').addEventListener('click',()=>void runButton($('copy-week'),async()=>{if(isTrainingAdmin()&&!state.weekCoach){toast('Hãy chọn một HLV trước khi sao chép lịch.',true);return;}const result=await api('trainingCopyWeek',{week:state.week,coach:isTrainingAdmin()?state.weekCoach:state.user.username,requestId:crypto.randomUUID()});invalidateWeekCache(state.week);await loadWeek(true);toast('Đã chép '+result.copied+' ca. Bỏ qua '+result.skipped+' ca đã có lịch hoặc học viên không còn đang học.');}));
   $('slot-form').addEventListener('submit',event=>{event.preventDefault();void runButton($('save-slot'),()=>saveSlot());});$('clear-slot').addEventListener('click',()=>void runButton($('clear-slot'),()=>saveSlot(true)));$('close-slot').addEventListener('click',()=>{if(!state.busy)$('slot-dialog').close();});
   $('slot-dialog').addEventListener('cancel',event=>{if(state.busy)event.preventDefault();});
   $('close-image').addEventListener('click',()=>{$('image-dialog').close();$('image-preview').removeAttribute('src');});
