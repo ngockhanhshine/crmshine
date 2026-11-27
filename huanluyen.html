@@ -15,11 +15,29 @@
 .profile-summary-grid .attention-summary{min-height:12rem;max-height:26rem}
 @media(max-width:900px){.profile-summary-grid{grid-template-columns:1fr}.intake-dialog{max-width:98vw}.intake-dialog #intake-content{padding:12px}.intake-dialog-head{padding:12px}}
 </style>
+<style>
+/* Compact results layout */
+#training-heading[data-results="true"]{justify-content:flex-start;flex-wrap:wrap;gap:12px 20px}
+#training-heading[data-results="true"] h1{flex-shrink:0}
+#training-heading[data-results="true"] #student-count{margin-left:auto;order:3}
+#training-heading #student-toolbar{flex:1;min-width:360px;margin:0;align-items:center;gap:12px}
+#training-heading #student-toolbar .picker{min-width:200px}
+#training-heading #student-toolbar label{display:none}
+#training-heading #student-toolbar .status-filter{width:150px}
+#panel-results .profile-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.profile-summary-notes{display:grid;gap:8px}
+#panel-results .attention-summary{min-height:0;height:78px;max-height:78px;overflow:auto;padding:8px 10px}
+#panel-results .log-text-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+#panel-results .log-text-grid>div{min-width:0}
+#panel-results .log-text-grid textarea{min-height:0}
+@media(max-width:900px){#panel-results .log-text-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){#training-heading #student-toolbar{min-width:0;flex-basis:100%;flex-wrap:wrap}#training-heading #student-toolbar .status-filter{width:100%}#panel-results .profile-summary-grid,#panel-results .log-text-grid{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
 <header class="topbar"><div class="topbar-inner"><div><a class="brand crm-link" href="File_CRM_huanluyen.html">SHINE CRM</a><span id="identity" class="identity"></span></div><div class="top-actions"><a class="crm-link" href="File_CRM_huanluyen.html">Về CRM</a><button id="refresh-button" type="button">Tải lại</button><button id="logout-button" type="button">Đăng xuất</button></div></div></header>
 <main class="wrapper">
-<div class="page-heading"><h1>Huấn luyện</h1><span id="student-count" class="muted"></span></div>
+<div id="training-heading" class="page-heading"><h1>Huấn luyện</h1><span id="student-count" class="muted"></span></div>
 <div id="access-message" class="card" hidden><p id="access-text"></p><a class="crm-link" href="File_CRM_huanluyen.html">Đăng nhập qua CRM</a>
 <form id="training-login" style="max-width:420px;margin-top:18px">
 <div class="form-row"><label for="login-username">Tài khoản HLV hoặc Admin</label><input id="login-username" autocomplete="username" required></div>
@@ -30,7 +48,7 @@
 <div id="error-banner" class="banner" role="alert" hidden></div>
 <div id="workspace" hidden>
 <nav class="tabs" role="tablist" aria-label="Huấn luyện"><button id="tab-intake" role="tab" aria-controls="panel-intake" aria-selected="true" data-tab="intake">Tình trạng đầu vào</button><button id="tab-week" role="tab" aria-controls="panel-week" aria-selected="false" data-tab="week" tabindex="-1">Lịch tuần</button><button id="tab-results" role="tab" aria-controls="panel-results" aria-selected="false" data-tab="results" tabindex="-1">Kết quả tập</button></nav>
-<div id="student-toolbar" class="toolbar"><div class="picker"><label for="student-picker">Học viên</label><input id="student-picker" type="search" list="student-options" autocomplete="off" placeholder="Nhập tên hoặc số điện thoại để chọn học viên"><datalist id="student-options"></datalist></div><div class="status-filter"><label for="student-status">Trạng thái học</label><select id="student-status"><option>Đang học</option><option>Bảo lưu</option><option>Tốt nghiệp</option><option value="ALL">Tất cả</option></select></div></div>
+<div id="student-toolbar-home" hidden></div><div id="student-toolbar" class="toolbar"><div class="picker"><label for="student-picker">Học viên</label><input id="student-picker" type="search" list="student-options" autocomplete="off" placeholder="Nhập tên hoặc số điện thoại để chọn học viên"><datalist id="student-options"></datalist></div><div class="status-filter"><label for="student-status">Trạng thái học</label><select id="student-status"><option>Đang học</option><option>Bảo lưu</option><option>Tốt nghiệp</option><option value="ALL">Tất cả</option></select></div></div>
 <section id="panel-intake" role="tabpanel" aria-labelledby="tab-intake"><div id="intake-empty" class="empty-panel">Chọn học viên để xem tình trạng đầu vào.</div><dialog id="intake-dialog" class="intake-dialog" aria-labelledby="intake-dialog-title"><div class="intake-dialog-head"><h2 id="intake-dialog-title">Hồ sơ học viên</h2><button id="close-intake" type="button">Đóng</button></div><div id="intake-content" hidden>
 <div class="card"><div class="card-title"><h2>Thông tin học viên</h2></div><div id="student-info" class="info-grid"></div><div class="form-row"><label>Tình trạng mắt</label><div id="eye-note" class="note"></div></div></div>
 <div class="grid-two"><form id="profile-form" class="card"><div class="card-title"><h2>Thông tin huấn luyện</h2><span id="profile-saved" class="saved-indicator"></span></div><label>Độ kính</label><div class="table-scroll"><table class="glasses"><thead><tr><th>Mắt</th><th>Sph</th><th>Cyl</th><th>Ax</th><th>VA</th><th>Ghi chú</th></tr></thead><tbody id="glasses-fields"></tbody></table></div><div class="form-row"><label for="brockstring">Brockstring</label><input id="brockstring" type="text" maxlength="10000"></div><div class="form-row"><label for="attention">Chú ý</label><textarea id="attention" rows="9" maxlength="40000" placeholder="Ghi chú hướng dẫn và những điểm cần theo dõi..."></textarea></div><fieldset id="study-status" class="form-row" style="border:0;padding:0"><legend style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:7px">Trạng thái học</legend><div style="display:flex;flex-wrap:wrap;gap:18px"><label style="display:flex;gap:6px;align-items:center"><input style="width:auto" type="radio" name="study-status-radio" value="Đang học" checked>Đang học</label><label style="display:flex;gap:6px;align-items:center"><input style="width:auto" type="radio" name="study-status-radio" value="Bảo lưu">Bảo lưu</label><label style="display:flex;gap:6px;align-items:center"><input style="width:auto" type="radio" name="study-status-radio" value="Tốt nghiệp">Tốt nghiệp</label></div></fieldset><div class="form-actions"><button id="save-profile" class="primary" type="submit">Lưu thông tin huấn luyện</button></div></form>
@@ -40,7 +58,7 @@
 </div></dialog></section>
 <section id="panel-week" role="tabpanel" aria-labelledby="tab-week" hidden><div class="card"><div class="week-controls"><div id="week-coach-filter" hidden><label for="week-coach">HLV</label><select id="week-coach"><option value="">Tất cả HLV</option></select></div><button id="previous-week" type="button" aria-label="Tuần trước">←</button><span id="week-label" class="week-label"></span><button id="next-week" type="button" aria-label="Tuần sau">→</button><button id="this-week" type="button">Tuần này</button><button id="copy-week" type="button">Sao chép lịch tuần trước</button></div><p id="week-status" role="status" class="muted" style="margin-bottom:10px"></p><div class="schedule-scroll"><table class="week-grid"><thead id="week-head"></thead><tbody id="week-body"></tbody></table></div></div></section>
 <section id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden><div id="results-empty" class="empty-panel">Chọn học viên để xem kết quả tập.</div><div id="results-content" hidden><div class="card"><div class="card-title"><h2>Thông tin đầu vào hiện tại</h2></div><div id="profile-summary"></div></div>
-<form id="log-form" class="card"><div class="card-title"><h2 id="log-form-title">Ghi buổi tập</h2></div><div class="log-entry-grid"><div><label for="log-date">Ngày tập · Ctrl + ;</label><input id="log-date" type="date" required></div><div><label for="log-student">Học viên</label><input id="log-student" readonly></div><div><label for="log-coach">HLV</label><input id="log-coach" readonly></div></div><div class="log-text-grid"><div><label for="log-before">Trước tập</label><textarea id="log-before" rows="4" maxlength="15000"></textarea></div><div><label for="log-after">Sau tập</label><textarea id="log-after" rows="4" maxlength="15000"></textarea></div><div><label for="log-exercises">Chỉ định bài tập</label><textarea id="log-exercises" rows="4" maxlength="15000"></textarea></div><div><label for="log-notes">Ghi chú thêm</label><textarea id="log-notes" rows="4" maxlength="15000"></textarea></div></div><div class="form-actions"><button id="cancel-log-edit" type="button" hidden>Huỷ sửa</button><button id="save-log" class="primary" type="submit">Lưu buổi tập</button></div></form>
+<form id="log-form" class="card"><div class="card-title"><h2 id="log-form-title">Ghi buổi tập</h2></div><div class="log-entry-grid"><div><label for="log-date">Ngày tập · Ctrl + ;</label><input id="log-date" type="date" required></div><div><label for="log-student">Học viên</label><input id="log-student" readonly></div><div><label for="log-coach">HLV</label><input id="log-coach" readonly></div></div><div class="log-text-grid"><div><label for="log-before">Trước tập</label><textarea id="log-before" rows="3" maxlength="15000"></textarea></div><div><label for="log-after">Sau tập</label><textarea id="log-after" rows="3" maxlength="15000"></textarea></div><div><label for="log-exercises">Chỉ định bài tập</label><textarea id="log-exercises" rows="3" maxlength="15000"></textarea></div><div><label for="log-notes">Ghi chú thêm</label><textarea id="log-notes" rows="3" maxlength="15000"></textarea></div></div><div class="form-actions"><button id="cancel-log-edit" type="button" hidden>Huỷ sửa</button><button id="save-log" class="primary" type="submit">Lưu buổi tập</button></div></form>
 <div class="card"><div class="card-title"><h2>Lịch sử huấn luyện</h2><span id="logs-status" class="muted"></span></div><div class="table-scroll"><table class="log-table"><thead><tr><th>Ngày</th><th>Học viên</th><th>HLV</th><th>Trước tập</th><th>Sau tập</th><th>Chỉ định bài tập</th><th>Ghi chú thêm</th><th></th></tr></thead><tbody id="logs-body"></tbody></table></div></div></div></section>
 </div></main>
 <div id="toasts" class="toast-area" aria-live="polite"></div>
@@ -230,7 +248,7 @@ function renderProfile(profile){
 function profileSummary(p){
   if(!p)return '<p class="muted">Chưa có bản ghi đầu vào.</p>';
   const glasses=[['right','MP'],['left','MT']].map(([eye,label])=>`<tr><th>${label}</th>${p.glasses[eye].map(v=>`<td>${esc(v||"—")}</td>`).join("")}</tr>`).join("");
-  return `<div class="profile-summary-grid"><div><label>Độ kính</label><div class="table-scroll"><table class="glasses"><thead><tr><th>Mắt</th><th>Sph</th><th>Cyl</th><th>Ax</th><th>VA</th><th>Ghi chú</th></tr></thead><tbody>${glasses}</tbody></table></div></div><div><label>Brockstring</label><input type="text" readonly aria-label="Brockstring hiện tại" value="${esc(p.brockstring.replace(/\r?\n/g,' · '))}"></div><div><label>Chú ý</label><div class="note attention-summary">${esc(p.attention||"—")}</div></div></div>`;
+  return `<div class="profile-summary-grid"><div><label>Độ kính</label><div class="table-scroll"><table class="glasses"><thead><tr><th>Mắt</th><th>Sph</th><th>Cyl</th><th>Ax</th><th>VA</th><th>Ghi chú</th></tr></thead><tbody>${glasses}</tbody></table></div></div><div class="profile-summary-notes"><div><label>Brockstring</label><input type="text" readonly aria-label="Brockstring hiện tại" value="${esc(p.brockstring.replace(/\r?\n/g,' · '))}"></div><div><label>Chú ý</label><div class="note attention-summary">${esc(p.attention||"—")}</div></div></div></div>`;
 }
 
 async function saveProfile(event){
@@ -245,6 +263,10 @@ async function showTab(tab){
   state.tab=tab;
   for(const name of ['intake','week','results']){const active=tab===name;$("panel-"+name).hidden=!active;$("tab-"+name).setAttribute("aria-selected",String(active));$("tab-"+name).tabIndex=active?0:-1;}
   $("student-toolbar").hidden=tab==="week";
+  const toolbar=$("student-toolbar"), home=$("student-toolbar-home"), heading=$("training-heading");
+  if(tab==="results") heading.append(toolbar);
+  else home.after(toolbar);
+  heading.dataset.results=String(tab==="results");
   try{if(tab==="week")await loadWeek();else if(state.studentId&&tab==="results")await loadLogs();else if(state.studentId)void loadMedia();}catch(error){toast(error.message,true);}
 }
 async function loadWeek(force=false){
